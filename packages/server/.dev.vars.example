@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development. Generate with: openssl rand -hex 32
+TOKEN_SECRET=replace-me-with-a-long-random-string
+# Accept unsigned Firebase Auth Emulator tokens. Never set this in production.
+AUTH_EMULATOR=true
+# Skip per-IP limits so local tests can create many guests. Never set this in production.
+DISABLE_RATE_LIMITS=true

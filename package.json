@@ -1,0 +1,22 @@
+{
+  "name": "quantmaxxing",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Real-time competitive mental math: same questions, fixed clock, most correct answers wins.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["packages/shared", "packages/server", "packages/web"],
+  "scripts": {
+    "dev:server": "npm run dev -w @qm/server",
+    "dev:web": "npm run dev -w @qm/web",
+    "build": "npm run build -w @qm/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "e2e:server": "node scripts/server-smoke.mjs"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
