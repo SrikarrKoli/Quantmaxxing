@@ -21,6 +21,7 @@ Created and maintained by **Srikar Koli** ([@SrikarrKoli](https://github.com/Sri
 - [Deploying](#deploying)
 - [Configuration](#configuration)
 - [Security](#security)
+- [Analytics](#analytics)
 - [Free-tier limits](#free-tier-limits)
 - [Contributing](#contributing)
 - [License](#license)
@@ -47,8 +48,11 @@ Quantmaxxing is inspired by [Zetamac](https://arithmetic.zetamac.com/), but it's
 | **Quick match** | Everyone | Get matched with someone at the same match length. If nobody else is around, a bot takes their place (see [Bots](#bots)). |
 | **Private room** | Everyone | Create a room with a 6-character code and share it with up to 7 friends. |
 | **Ranked** | Signed-in players | 1-minute matches against another signed-in player. These change your rating. |
+| **Solo practice** | Everyone | Same rules with no opponent. Runs entirely in the browser, so it works offline and when the server is busy. Scores aren't saved. |
 
 Guests get a random suggested username, which they can reroll or replace with their own, and can play every mode except Ranked.
+
+After any match, **Share result** copies a plain-text result (score, opponent, hearts and a link) or opens the phone's share sheet. Links to the site show a preview image (`packages/web/public/og.png`).
 
 ## Accounts, ratings and levels
 
@@ -201,9 +205,22 @@ Site settings (`packages/web/.env*`): `VITE_API_ORIGIN` and the public Firebase 
 
 Found a vulnerability? See [SECURITY.md](SECURITY.md).
 
+## Analytics
+
+The site keeps privacy-safe daily counters in D1 (`daily_events`): each browser is counted once per UTC day as new or returning, plus shares, invite-link copies and solo practice runs, grouped by traffic source (`?s=`, `?ref=` or `?utm_source=` on the link, else the referring site). No cookies, IP addresses, user agents or user IDs are stored. Match history (already stored for every game) supplies matches per day, bot-vs-human share and retention.
+
+```sh
+npm run stats          # production; needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
+npm run stats -- --local
+```
+
+It prints visitors per day, top sources, matches per day by mode, and the share of new players who played a second match or came back another day. Tag links you post, for example `https://quantmaxxing.web.app/?s=reddit`.
+
 ## Free-tier limits
 
-The tightest limit is Cloudflare's free quota of 100,000 Worker requests per day. WebSocket messages after connecting count toward the much larger Durable Object allowance instead. A match takes only a handful of requests per player, so that's thousands of matches a day. If a daily limit is reached, the site shows "Can't reach the game server" until the reset at 00:00 UTC.
+The tightest limit is Cloudflare's free quota of 100,000 Worker requests per day. WebSocket messages after connecting count toward the much larger Durable Object allowance instead. A match takes only a handful of requests per player, so that's thousands of matches a day. Analytics adds one request per browser per day plus one per share, invite copy or practice run.
+
+To stretch the quota, the leaderboard is cached in the browser for 60 seconds. If the limit is hit anyway, the site says the server is busy or at its daily limit (it resets at 00:00 UTC) and points players to solo practice, which needs no server. Watch usage in the Cloudflare dashboard under Workers & Pages; if launch traffic gets close, the Workers Paid plan ($5/month) raises the limit to 10 million requests.
 
 ## Contributing
 

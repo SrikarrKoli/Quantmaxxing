@@ -70,6 +70,7 @@ export function Home() {
       <div className="more">
         <button aria-expanded={open === "bot"} onClick={() => toggle("bot")}>Play a bot</button>
         <button aria-expanded={open === "room"} onClick={() => toggle("room")}>Private room</button>
+        <Link to={`/practice?d=${duration}`}>Solo practice</Link>
         <Link to="/leaderboard">Leaderboard</Link>
       </div>
       {open === "bot" && (
@@ -94,6 +95,7 @@ export function Home() {
         </div>
       )}
       {error && <p className="error" role="alert">{error}</p>}
+      {error && error.includes("Solo practice") && <p><Link to={`/practice?d=${duration}`}>Start solo practice</Link></p>}
       <div className="rules">
         <ol>
           <li><b>Same questions.</b> Everyone in the match gets the same problems in the same order.</li>

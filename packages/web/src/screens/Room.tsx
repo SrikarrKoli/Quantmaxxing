@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  DURATIONS, STARTING_HEARTS, answerOf, formatQuestion, questionAt,
+  DURATIONS, STARTING_HEARTS, answerOf, formatQuestion, questionAt, resultShareText,
   type DurationSec, type MatchResults, type ProgressState, type Question, type RoomSnapshot, type SelfState, type ServerMsg,
 } from "@qm/shared";
 import { api, wsUrl } from "../api";
@@ -8,6 +8,8 @@ import { Link, navigate } from "../router";
 import { errorText, useSession } from "../session";
 import { GuestNameDialog } from "./Home";
 import { savePace } from "../pace";
+import { ShareButton } from "../ShareButton";
+import { track } from "../track";
 
 interface MatchInfo { matchId: string; startAt: number; endAt: number; duration: DurationSec }
 
@@ -145,6 +147,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
       <main className="page narrow">
         <h1>Can't join this match</h1>
         <p className="error" role="alert">{error}</p>
+        {error.includes("Solo practice") && <p><Link to="/practice">Start solo practice</Link></p>}
         <p><Link to="/">Back to the home screen</Link></p>
       </main>
     );
@@ -238,7 +241,7 @@ function Lobby({ room, status, error, onStart, onDuration, onRetry }: {
     <main className="page center lobby">
       <p className="mute" style={{ marginTop: "1.5rem" }}>Private room</p>
       <p className="code">{room.code}</p>
-      <p><button className="link" onClick={async () => { await navigator.clipboard.writeText(link); setCopied(true); }}>{copied ? "Link copied" : "Copy invite link"}</button></p>
+      <p><button className="link" onClick={async () => { await navigator.clipboard.writeText(link); setCopied(true); track("invite_copy"); }}>{copied ? "Link copied" : "Copy invite link"}</button></p>
       <div className="seg" role="radiogroup" aria-label="Match length" style={{ margin: "1rem 0 .5rem" }}>
         {DURATIONS.map((d) => (
           <button key={d} role="radio" aria-checked={room.duration === d} className={room.duration === d ? "on" : ""} disabled={!host} onClick={() => onDuration(d)}>
@@ -310,6 +313,13 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
       <div className="row" style={{ justifyContent: "center", margin: "1rem 0 1.5rem" }}>
         {results.mode === "private" && !host ? <p className="mute">Waiting for the host to start a rematch.</p> : (
           <button className="btn primary" onClick={again}>{results.mode === "private" ? "Rematch" : results.mode === "bot" ? "Play again" : botFill && results.mode === "ranked" ? "Keep searching" : "New opponent"}</button>
+        )}
+        {mine && (
+          <ShareButton text={resultShareText({
+            outcome: mine.outcome, correct: mine.correct, wrong: mine.wrong, hearts: mine.hearts, durationSec: results.duration,
+            opponent: rivals.length === 1 && best ? { name: best.name, correct: best.correct } : undefined,
+            rated: results.rated && delta !== null && mine.ratingAfter !== undefined ? { delta, after: mine.ratingAfter } : undefined,
+          })} />
         )}
         <Link to="/" className="btn">Home</Link>
       </div>

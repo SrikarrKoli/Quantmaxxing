@@ -6,12 +6,14 @@ import { Queue } from "./screens/Queue";
 import { SignIn, SignUp, ResetPassword, ChooseUsername } from "./screens/Auth";
 import { Leaderboard, PlayerPage } from "./screens/Leaderboard";
 import { Account } from "./screens/Account";
+import { Practice } from "./screens/Practice";
 
 function Screen({ path }: { path: string }) {
   const s = useSession();
   if (s.user && s.needsProfile && path !== "/account/username") return <ChooseUsername />;
   let m: RegExpMatchArray | null;
   if (path === "/") return <Home />;
+  if (path === "/practice") return <Practice />;
   if ((m = path.match(/^\/r\/([A-Za-z0-9]{6})$/))) return <RoomScreen roomId={`code-${m[1]!.toUpperCase()}`} />;
   if ((m = path.match(/^\/m\/([A-Za-z0-9-]{6,64})$/))) return <RoomScreen roomId={m[1]!} />;
   if ((m = path.match(/^\/queue\/(casual|ranked)$/))) return <Queue kind={m[1] as "casual" | "ranked"} />;
@@ -47,7 +49,7 @@ export function App() {
           {s.user ? <Link to="/account">Account</Link> : <Link to="/signin">Sign in</Link>}
         </div>
       </header>
-      <div id="main">{s.ready ? <Screen path={path} /> : <main className="page narrow" aria-busy="true"><p>Loading…</p></main>}</div>
+      <div id="main">{s.ready || path === "/practice" ? <Screen path={path} /> : <main className="page narrow" aria-busy="true"><p>Loading…</p></main>}</div>
     </>
   );
 }
