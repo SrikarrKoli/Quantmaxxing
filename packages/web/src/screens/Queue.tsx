@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { RANKED_DURATION, botLevelFor, botName, isDuration, type BotLevel, type LobbyServerMsg } from "@qm/shared";
+import { BOT_LEVELS, RANKED_DURATION, botLevelFor, botName, isDuration, type BotLevel, type LobbyServerMsg } from "@qm/shared";
 import { api, wsUrl } from "../api";
 import { Link, navigate } from "../router";
 import { errorText, useSession } from "../session";
@@ -90,7 +90,7 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
         <div className="drawer" aria-label="Play a bot now">
           <p className="hint" style={{ margin: 0 }}>Play a bot now:</p>
           <div className="seg" role="group" aria-label="Choose bot difficulty">
-            {(["easy", "medium", "hard"] as BotLevel[]).map((level) => (
+            {(Object.keys(BOT_LEVELS) as BotLevel[]).map((level) => (
               <button key={level} onClick={() => playBot(level)}>{botName(level)}</button>
             ))}
           </div>
