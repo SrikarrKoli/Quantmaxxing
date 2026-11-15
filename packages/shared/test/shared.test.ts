@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   botLevelFor, botPacePerMin,
   answerOf, botSchedule, botStateAt, compareStandings, eloUpdate, levelFor, parseClientMsg,
-  placements, questionAt, suggestUsername, validateUsername, type Standing,
+  placements, questionAt, suggestUsername, validateUsername, resultShareText, isEventName, cleanSource, type Standing,
 } from "../src";
 
 const base = (o: Partial<Standing> & { key: string }): Standing => ({
@@ -127,5 +127,23 @@ describe("bot fill", () => {
   it("reserves bot names", () => {
     for (const n of ["Bot", "Medium_Bot", "easy-bot", "EXPERTBOT", "Quant_Trader"]) expect(validateUsername(n).ok).toBe(false);
     expect(validateUsername("Talbot").ok).toBe(true);
+  });
+});
+
+describe("sharing and events", () => {
+  it("builds a plain result card", () => {
+    expect(resultShareText({ outcome: "win", correct: 24, wrong: 1, hearts: 2, durationSec: 60, opponent: { name: "Quant Trader", correct: 19 } }))
+      .toBe("Quantmaxxing · 1 min\nBeat Quant Trader 24–19\n● ● ○  1 wrong\nhttps://quantmaxxing.web.app/?s=share");
+    expect(resultShareText({ outcome: "practice", correct: 30, wrong: 0, hearts: 3, durationSec: 120 }, "http://x"))
+      .toBe("Quantmaxxing · 2 min\n30 correct\n● ● ●  0 wrong\nhttp://x/?s=share");
+    expect(resultShareText({ outcome: "loss", correct: 10, wrong: 3, hearts: 0, durationSec: 30, opponent: { name: "ann", correct: 12 }, rated: { delta: -14.4, after: 1185.6 } }))
+      .toContain("Lost to ann 10–12 · Ranked −14 → 1186");
+  });
+  it("only accepts known events and short source tokens", () => {
+    expect(isEventName("share")).toBe(true);
+    expect(isEventName("drop table")).toBe(false);
+    expect(cleanSource("www.Reddit.com")).toBe("reddit.com");
+    expect(cleanSource("https://evil.example/?q=1")).toBe("direct");
+    expect(cleanSource(undefined)).toBe("direct");
   });
 });

@@ -19,7 +19,8 @@
     "build": "npm run build -w @qm/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
-    "e2e:server": "node scripts/server-smoke.mjs"
+    "e2e:server": "node scripts/server-smoke.mjs",
+    "stats": "node scripts/stats.mjs"
   },
   "devDependencies": {
     "typescript": "~5.8.3",

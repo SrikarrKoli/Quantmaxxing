@@ -6,7 +6,7 @@ const WS = BASE.replace(/^http/, "ws");
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exit(1); } else console.log("ok -", m); };
 const post = async (path, body, headers = {}) => {
   const r = await fetch(BASE + path, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body ?? {}) });
-  return { status: r.status, body: await r.json() };
+  return { status: r.status, body: await r.json().catch(() => ({})) };
 };
 const solve = (q) => q.op === "+" ? q.a + q.b : q.op === "-" ? q.a - q.b : q.op === "×" ? q.a * q.b : q.a / q.b;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -40,6 +40,10 @@ assert((await post("/api/ticket", {})).status === 401, "ticket requires identity
 
 // 1) Private room: same sequence, hearts, no advance on wrong, elimination ends match.
 const A = await guest("AliceTest"); const B = await guest("BobTest");
+const ev = await post("/api/event", { name: "share", src: "smoke" });
+assert(ev.status === 204, "anonymous share event is counted");
+const badEv = await post("/api/event", { name: "drop_table" });
+assert(badEv.status === 400, "unknown analytics events are rejected");
 const room = await post("/api/rooms", { duration: 30 }, { "X-Guest-Token": A.token });
 assert(room.status === 200 && /^[A-Z2-9]{6}$/.test(room.body.code), "private room created with code");
 const ca = await connect(`${WS}/ws/room/code-${room.body.code}?ticket=${A.ticket}`);

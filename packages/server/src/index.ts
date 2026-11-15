@@ -1,4 +1,4 @@
-import { BOT_LEVELS, isBotLevel, isDuration, suggestUsername, validateUsername, levelFor, type DurationSec } from "@qm/shared";
+import { BOT_LEVELS, cleanSource, isBotLevel, isEventName, isDuration, suggestUsername, validateUsername, levelFor, type DurationSec } from "@qm/shared";
 import { randomId, sign, verify, verifyFirebaseToken, type FirebaseIdentity, type GuestToken, type Ticket } from "./auth";
 import { deleteAccount, getProfile, upsertProfile } from "./db";
 import type { Env } from "./env";
@@ -186,12 +186,28 @@ async function route(req: Request, env: Env): Promise<Response> {
     return env.LOBBY.get(env.LOBBY.idFromName("global")).fetch(req);
   }
 
+  if (path === "/api/event" && req.method === "POST") {
+    if (limited(`event:${ip}`, 30, 60 * 60 * 1000)) return new Response(null, { status: 204 });
+    const body = await readJson<{ name: string; src: string }>(req);
+    if (!isEventName(body.name)) return err(400, "bad_event", "Unknown event.");
+    const day = new Date().toISOString().slice(0, 10);
+    await env.DB.prepare(
+      `INSERT INTO daily_events (day, name, src, n) VALUES (?, ?, ?, 1)
+       ON CONFLICT (day, name, src) DO UPDATE SET n = n + 1`,
+    )
+      .bind(day, body.name, cleanSource(body.src))
+      .run();
+    return new Response(null, { status: 204 });
+  }
+
   if (path === "/api/leaderboard" && req.method === "GET") {
     const rows = await env.DB.prepare(
       `SELECT username, rating, rated_games, wins, losses, draws, total_correct, best_60
        FROM players WHERE rated_games > 0 ORDER BY rating DESC LIMIT 100`,
     ).all();
-    return json({ players: rows.results.map((r) => ({ ...r, level: levelFor(Number(r.total_correct)) })) });
+    const res = json({ players: rows.results.map((r) => ({ ...r, level: levelFor(Number(r.total_correct)) })) });
+    res.headers.set("Cache-Control", "public, max-age=60");
+    return res;
   }
 
   const player = path.match(/^\/api\/players\/([A-Za-z0-9_-]{3,20})$/);

@@ -5,3 +5,4 @@ export * from "./rating";
 export * from "./names";
 export * from "./bot";
 export * from "./protocol";
+export * from "./share";
