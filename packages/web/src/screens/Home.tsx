@@ -46,62 +46,61 @@ export function Home() {
     void run({ kind: "join", code: c });
   };
 
+  const [open, setOpen] = useState<"bot" | "room" | null>(null);
+  const toggle = (k: "bot" | "room") => setOpen((o) => (o === k ? null : k));
+  const len = (d: number) => (d < 60 ? `${d}s` : `${d / 60} min`);
+
   return (
-    <main className="page home">
-      <section className="intro">
-        <h1>Same questions. Fixed clock. Most right answers wins.</h1>
-        <p className="lede">Head-to-head mental math. Wrong answers keep you on the question, and the third one knocks you out.</p>
-      </section>
-
-      <section className="panel" aria-labelledby="len">
-        <h2 id="len">Match length</h2>
-        <div className="seg" role="radiogroup" aria-labelledby="len">
-          {DURATIONS.map((d) => (
-            <button key={d} role="radio" aria-checked={duration === d} className={duration === d ? "on" : ""} onClick={() => setDuration(d)}>
-              {d < 60 ? `${d} s` : `${d / 60} min`}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="modes">
-        <div className="panel">
-          <h2>Quick match</h2>
-          <p>Play the next person in the queue. Guests welcome, never rated.</p>
-          <button className="btn primary" disabled={busy} onClick={() => run({ kind: "casual" })}>Find an opponent</button>
-        </div>
-        <div className="panel">
-          <h2>Ranked</h2>
-          <p>One-minute matches against players near your rating.</p>
-          {s.profile ? (
-            <button className="btn" onClick={() => navigate("/queue/ranked")}>Play ranked · {Math.round(s.profile.rating)}</button>
-          ) : (
-            <Link to="/signin?next=/queue/ranked" className="btn">Sign in to play ranked</Link>
-          )}
-        </div>
-        <div className="panel">
-          <h2>Play a bot</h2>
-          <div className="seg small" role="radiogroup" aria-label="Bot level">
+    <main className="page center home">
+      <h1>Head-to-head mental math</h1>
+      <p className="sub">Same questions. One clock. Three hearts.</p>
+      <div className="acts">
+        <button className="btn primary" disabled={busy} onClick={() => run({ kind: "casual" })}>Find opponent</button>
+        {s.profile ? (
+          <button className="btn" onClick={() => navigate("/queue/ranked")}>Ranked · {Math.round(s.profile.rating)}</button>
+        ) : (
+          <Link to="/signin?next=/queue/ranked" className="btn">Sign in for ranked</Link>
+        )}
+      </div>
+      <div className="seg" role="radiogroup" aria-label="Match length">
+        {DURATIONS.map((d) => (
+          <button key={d} role="radio" aria-checked={duration === d} className={duration === d ? "on" : ""} onClick={() => setDuration(d)}>{len(d)}</button>
+        ))}
+      </div>
+      <div className="more">
+        <button aria-expanded={open === "bot"} onClick={() => toggle("bot")}>Play a bot</button>
+        <button aria-expanded={open === "room"} onClick={() => toggle("room")}>Private room</button>
+        <Link to="/leaderboard">Leaderboard</Link>
+      </div>
+      {open === "bot" && (
+        <div className="drawer">
+          <div className="seg" role="radiogroup" aria-label="Bot level" style={{ marginBottom: 0 }}>
             {(Object.keys(BOT_LEVELS) as BotLevel[]).map((l) => (
-              <button key={l} role="radio" aria-checked={level === l} className={level === l ? "on" : ""} onClick={() => setLevel(l)}>
-                {BOT_LEVELS[l].label}
-              </button>
+              <button key={l} role="radio" aria-checked={level === l} className={level === l ? "on" : ""} onClick={() => setLevel(l)}>{BOT_LEVELS[l].label}</button>
             ))}
           </div>
-          <button className="btn" disabled={busy} onClick={() => run({ kind: "bot", level })}>Start bot match</button>
+          <button className="btn primary" disabled={busy} onClick={() => run({ kind: "bot", level })}>Start {len(duration)} bot match</button>
         </div>
-        <div className="panel">
-          <h2>Private room</h2>
-          <p>Up to 8 friends with a code. Rooms are never rated.</p>
-          <button className="btn" disabled={busy} onClick={() => run({ kind: "room" })}>Create a room</button>
-          <form className="row" onSubmit={onJoin}>
+      )}
+      {open === "room" && (
+        <div className="drawer">
+          <p className="hint">Up to 8 players with a code. Never rated.</p>
+          <button className="btn primary" disabled={busy} onClick={() => run({ kind: "room" })}>Create a room</button>
+          <form className="row" onSubmit={onJoin} style={{ width: "100%" }}>
             <label className="sr" htmlFor="code">Room code</label>
             <input id="code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Room code" maxLength={6} autoCapitalize="characters" autoComplete="off" spellCheck={false} />
             <button className="btn" type="submit">Join</button>
           </form>
         </div>
-      </section>
+      )}
       {error && <p className="error" role="alert">{error}</p>}
+      <div className="rules">
+        <ol>
+          <li><b>Same questions.</b> Everyone in the match gets the same problems in the same order.</li>
+          <li><b>Most correct wins.</b> Correct answers submit themselves; a wrong one keeps you on the problem.</li>
+          <li><b>Three hearts.</b> Each wrong answer costs one. The third knocks you out.</li>
+        </ol>
+      </div>
       {pending && <GuestNameDialog onDone={(auth) => { const a = pending; setPending(null); void run(a, auth); }} onCancel={() => setPending(null)} />}
     </main>
   );

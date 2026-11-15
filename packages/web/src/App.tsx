@@ -38,7 +38,7 @@ export function App() {
     <>
       <a className="skip" href="#main">Skip to content</a>
       <header className={`bar${inMatch ? " slim" : ""}`}>
-        <Link to="/" className="logo">Quantmaxxing</Link>
+        <Link to="/" className="logo" aria-label="Quantmaxxing home"><span aria-hidden="true">Quantma<i>××</i>ing</span></Link>
         <nav aria-label="Main">
           <Link to="/leaderboard">Leaderboard</Link>
         </nav>

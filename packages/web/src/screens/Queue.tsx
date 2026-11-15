@@ -52,8 +52,8 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
 
   const secs = Math.floor((Date.now() - since) / 1000);
   return (
-    <main className="page narrow" aria-busy={!error}>
-      <h1>{kind === "ranked" ? "Ranked" : "Quick match"} · {duration < 60 ? `${duration} s` : `${duration / 60} min`}</h1>
+    <main className="page narrow center" aria-busy={!error}>
+      <h1 style={{ marginTop: "2rem" }}>{kind === "ranked" ? "Ranked" : "Quick match"} · {duration < 60 ? `${duration} s` : `${duration / 60} min`}</h1>
       {error ? (
         <>
           <p className="error" role="alert">{error}</p>
