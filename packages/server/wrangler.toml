@@ -23,5 +23,5 @@ new_sqlite_classes = ["Room", "Lobby"]
 [[d1_databases]]
 binding = "DB"
 database_name = "quantmaxxing"
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "d8c250c3-ca59-4e97-bc9b-63d1ca1447d8"
 migrations_dir = "migrations"
