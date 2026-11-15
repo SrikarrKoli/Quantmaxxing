@@ -5,8 +5,14 @@
   "description": "Real-time competitive mental math: same questions, fixed clock, most correct answers wins.",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=22" },
-  "workspaces": ["packages/shared", "packages/server", "packages/web"],
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/shared",
+    "packages/server",
+    "packages/web"
+  ],
   "scripts": {
     "dev:server": "npm run dev -w @qm/server",
     "dev:web": "npm run dev -w @qm/web",
@@ -17,6 +23,9 @@
   },
   "devDependencies": {
     "typescript": "~5.8.3",
-    "vitest": "^3.2.4"
+    "vitest": "^5.1.0"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "^1.13.6"
   }
 }
