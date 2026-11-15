@@ -52,6 +52,8 @@ export interface MatchResults {
   endReason: EndReason;
   rows: ResultRow[];
   rated: boolean;
+  /** Revealed after the match so every player's results can list all problems. */
+  seed: string;
 }
 
 export type RoomPhase = "lobby" | "countdown" | "playing" | "results";

@@ -575,7 +575,7 @@ export class Room implements DurableObject {
       }
     }
 
-    this.results = { matchId: m.matchId, mode: m.mode, duration: m.duration, endReason: reason, rows, rated: rated && !!ratings };
+    this.results = { matchId: m.matchId, mode: m.mode, duration: m.duration, endReason: reason, rows, rated: rated && !!ratings, seed: m.seed };
     this.match = null;
     await this.ctx.storage.delete("match");
     await this.ctx.storage.put("results", this.results);

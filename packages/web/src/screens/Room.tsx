@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  DURATIONS, STARTING_HEARTS, answerOf, formatQuestion,
+  DURATIONS, STARTING_HEARTS, answerOf, formatQuestion, questionAt,
   type DurationSec, type MatchResults, type ProgressState, type Question, type RoomSnapshot, type SelfState, type ServerMsg,
 } from "@qm/shared";
 import { api, wsUrl } from "../api";
@@ -322,7 +322,7 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
           <thead><tr><th scope="col">#</th><th scope="col" className="l">Problem</th><th scope="col">You</th>{theirT.length > 0 && <th scope="col">{best?.name}</th>}</tr></thead>
           <tbody>
             {Array.from({ length: rows }, (_, i) => {
-              const q = questions.get(i);
+              const q = questions.get(i) ?? (results.seed ? questionAt(results.seed, i) : undefined);
               const a = myT[i], b = theirT[i];
               const faster = a !== undefined && (b === undefined || a <= b) ? "me" : "them";
               return (

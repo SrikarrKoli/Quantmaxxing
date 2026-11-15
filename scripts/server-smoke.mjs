@@ -1,6 +1,7 @@
 // End-to-end protocol check against a running worker (default: local `wrangler dev`).
 // Usage: node scripts/server-smoke.mjs [baseUrl]
 const BASE = process.argv[2] ?? "http://127.0.0.1:8787";
+const PROJECT = process.env.FIREBASE_PROJECT_ID ?? "quantmaxxing-94ac5";
 const WS = BASE.replace(/^http/, "ws");
 const assert = (c, m) => { if (!c) { console.error("FAIL:", m); process.exit(1); } else console.log("ok -", m); };
 const post = async (path, body, headers = {}) => {
@@ -119,7 +120,7 @@ assert(refused, "ranked queue refuses guests");
 
 // 4) Ranked with emulator-style Firebase tokens: profile, pairing, rated result, leaderboard.
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
-const idToken = (sub) => `${b64({ alg: "none", typ: "JWT" })}.${b64({ aud: "quantmaxxing", iss: "https://securetoken.google.com/quantmaxxing", sub, email: `${sub}@example.com`, email_verified: true, firebase: { sign_in_provider: "password" }, exp: Math.floor(Date.now() / 1000) + 3600 })}.`;
+const idToken = (sub) => `${b64({ alg: "none", typ: "JWT" })}.${b64({ aud: PROJECT, iss: `https://securetoken.google.com/${PROJECT}`, sub, email: `${sub}@example.com`, email_verified: true, firebase: { sign_in_provider: "password" }, exp: Math.floor(Date.now() / 1000) + 3600 })}.`;
 const suffix = Date.now().toString(36).slice(-5);
 async function user(sub, name) {
   const auth = { Authorization: `Bearer ${idToken(sub)}` };
