@@ -4,8 +4,8 @@ import { connectAuthEmulator, getAuth, type Auth } from "firebase/auth";
 const env = import.meta.env;
 const config = {
   apiKey: env.VITE_FIREBASE_API_KEY as string | undefined,
-  authDomain: (env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined) ?? "quantmaxxing.firebaseapp.com",
-  projectId: (env.VITE_FIREBASE_PROJECT_ID as string | undefined) ?? "quantmaxxing",
+  authDomain: (env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined) ?? "quantmaxxing-94ac5.firebaseapp.com",
+  projectId: (env.VITE_FIREBASE_PROJECT_ID as string | undefined) ?? "quantmaxxing-94ac5",
   appId: env.VITE_FIREBASE_APP_ID as string | undefined,
 };
 const emulator = env.VITE_AUTH_EMULATOR as string | undefined;

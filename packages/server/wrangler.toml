@@ -4,7 +4,7 @@ compatibility_date = "2025-06-01"
 workers_dev = true
 
 [vars]
-FIREBASE_PROJECT_ID = "quantmaxxing"
+FIREBASE_PROJECT_ID = "quantmaxxing-94ac5"
 ALLOWED_ORIGINS = "https://quantmaxxing.web.app,https://quantmaxxing.firebaseapp.com,http://localhost:5173,http://127.0.0.1:5173"
 AUTH_EMULATOR = "false"
 

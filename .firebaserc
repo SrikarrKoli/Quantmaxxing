@@ -1,1 +1,14 @@
-{ "projects": { "default": "quantmaxxing" } }
+{
+  "projects": {
+    "default": "quantmaxxing-94ac5"
+  },
+  "targets": {
+    "quantmaxxing-94ac5": {
+      "hosting": {
+        "app": [
+          "quantmaxxing"
+        ]
+      }
+    }
+  }
+}

@@ -43,8 +43,8 @@ npm run e2e:server   # plays full matches against a running local server
 
 1. **Cloudflare:** `npx wrangler d1 create quantmaxxing`, put the returned ID in `packages/server/wrangler.toml`, then
    `npx wrangler d1 migrations apply quantmaxxing --remote`, `npx wrangler secret put TOKEN_SECRET` and `npx wrangler deploy` from `packages/server`.
-2. **Firebase:** create project `quantmaxxing`, enable the Email/Password and Google providers, register a web app and copy its config into `packages/web/.env` along with `VITE_API_ORIGIN` (the Worker URL).
-3. `npm run build && npx firebase deploy --only hosting`.
+2. **Firebase:** project `quantmaxxing-94ac5` (Email/Password and Google enabled) serves the `quantmaxxing` Hosting site. Its public web config is in `packages/web/.env.production`; set `VITE_API_ORIGIN` there to the Worker URL.
+3. `npm run build && npx firebase deploy --only hosting:app`.
 
 ## Free-tier limits
 
