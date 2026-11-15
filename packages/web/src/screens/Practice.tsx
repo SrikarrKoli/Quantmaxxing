@@ -29,10 +29,11 @@ export function Practice() {
 
   useEffect(() => {
     if (phase !== "play") return;
-    input.current?.focus();
     const id = setInterval(() => setNow(Date.now()), 100);
     return () => clearInterval(id);
   }, [phase]);
+
+  useEffect(() => { if (phase === "play") input.current?.focus(); }, [phase, shake]);
 
   useEffect(() => {
     if (phase === "play" && (now >= endAt || hearts <= 0)) {

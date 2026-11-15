@@ -114,7 +114,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
     return () => clearInterval(id);
   }, [match, results]);
 
-  useEffect(() => { if (playing) input.current?.focus(); }, [playing]);
+  useEffect(() => { if (playing) input.current?.focus(); }, [playing, shake]);
 
   if (needName) return <main className="page narrow"><GuestNameDialog onDone={() => { setNeedName(false); setAttempt((a) => a + 1); }} onCancel={() => navigate("/")} /></main>;
 
