@@ -7,6 +7,7 @@ import { api, wsUrl } from "../api";
 import { Link, navigate } from "../router";
 import { errorText, useSession } from "../session";
 import { GuestNameDialog } from "./Home";
+import { savePace } from "../pace";
 
 interface MatchInfo { matchId: string; startAt: number; endAt: number; duration: DurationSec }
 
@@ -183,7 +184,10 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         </div>
         <div className="stage">
           {counting ? (
-            <p className="q" aria-live="assertive">{Math.ceil((match.startAt - serverNow) / 1000)}</p>
+            <>
+              <p className="q" aria-live="assertive">{Math.ceil((match.startAt - serverNow) / 1000)}</p>
+              {room.mode !== "bot" && "bot" in progress && <p className="hint">No one's online right now, matched you with a bot.</p>}
+            </>
           ) : out ? (
             <p className="q small">{self ? "Out of hearts" : "Watching"}</p>
           ) : (
@@ -275,6 +279,8 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
   const headline = !mine ? "Match over" : mine.outcome === "win" ? `You won${score}` : mine.outcome === "draw" ? `Draw${score}` : `You lost${score}`;
   const reason = { time: "Time", hearts: "Out of hearts", resign: "Resigned", abandoned: "Opponent left" }[results.endReason];
   const len = results.duration < 60 ? `${results.duration}s` : `${results.duration / 60} min`;
+  const botFill = results.mode !== "bot" && rivals.some((r) => r.kind === "bot");
+  useEffect(() => { if (mine) savePace(mine.correct, results.duration); }, [results.matchId]); // eslint-disable-line react-hooks/exhaustive-deps
   const delta = mine?.ratingAfter !== undefined && mine.ratingBefore !== undefined ? mine.ratingAfter - mine.ratingBefore : null;
   const again = async () => {
     if (results.mode === "private") return onRematch();
@@ -299,11 +305,11 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
         {rivals.length === 1 && best ? `vs ${best.name} · ` : ""}{len} · {reason}
         {results.rated && delta !== null && mine?.ratingAfter !== undefined
           ? <> · Ranked <b style={{ color: "var(--ink)" }}>{delta >= 0 ? "+" : "−"}{Math.abs(delta).toFixed(0)}</b> → {Math.round(mine.ratingAfter)}</>
-          : " · Unrated"}
+          : botFill ? " · Unrated (bot)" : " · Unrated"}
       </p>
       <div className="row" style={{ justifyContent: "center", margin: "1rem 0 1.5rem" }}>
         {results.mode === "private" && !host ? <p className="mute">Waiting for the host to start a rematch.</p> : (
-          <button className="btn primary" onClick={again}>{results.mode === "private" ? "Rematch" : results.mode === "bot" ? "Play again" : "New opponent"}</button>
+          <button className="btn primary" onClick={again}>{results.mode === "private" ? "Rematch" : results.mode === "bot" ? "Play again" : botFill && results.mode === "ranked" ? "Keep searching" : "New opponent"}</button>
         )}
         <Link to="/" className="btn">Home</Link>
       </div>

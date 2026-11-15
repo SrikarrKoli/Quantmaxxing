@@ -300,7 +300,8 @@ export class Room implements DurableObject {
       runs[p.key] = newRun({ key: p.key, name: p.name, kind: p.kind, uid: p.uid, rating: p.rating, device: p.device });
     }
     let bot: MatchState["bot"];
-    if (cfg.mode === "bot") {
+    // Bot matches, and queue matches the lobby filled with a bot because no human was free.
+    if (cfg.mode === "bot" || (cfg.allowed && cfg.botLevel)) {
       const level = cfg.botLevel ?? "medium";
       bot = { key: BOT_KEY, level };
       runs[BOT_KEY] = newRun({ key: BOT_KEY, name: `${BOT_LEVELS[level].label} Bot`, kind: "bot", device: "unknown" });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  botLevelFor, botPacePerMin,
   answerOf, botSchedule, botStateAt, compareStandings, eloUpdate, levelFor, parseClientMsg,
   placements, questionAt, suggestUsername, validateUsername, type Standing,
 } from "../src";
@@ -104,5 +105,27 @@ describe("names and protocol", () => {
     expect(parseClientMsg("not json")).toBeNull();
     expect(parseClientMsg('{"t":"nope"}')).toBeNull();
     expect(parseClientMsg("x".repeat(600))).toBeNull();
+  });
+});
+
+describe("bot fill", () => {
+  it("picks the bot level closest to the player's pace, then rating, then Easy", () => {
+    expect(botLevelFor({})).toBe("easy");
+    expect(botLevelFor({ rating: 1200 })).toBe("medium");
+    expect(botLevelFor({ rating: 1600 })).toBe("expert");
+    expect(botLevelFor({ pace: 20, rating: 1600 })).toBe("easy");
+    expect(botLevelFor({ pace: 47 })).toBe("hard");
+    expect(botLevelFor({ pace: 120 })).toBe("expert");
+    expect(botLevelFor({ pace: Number.NaN })).toBe("easy");
+  });
+  it("estimates bot pace close to the real schedule", () => {
+    for (const level of ["easy", "medium", "hard", "expert"] as const) {
+      const real = botStateAt(botSchedule("pace", level, 60000), 60000).correct;
+      expect(Math.abs(real - botPacePerMin(level)) / real).toBeLessThan(0.25);
+    }
+  });
+  it("reserves bot names", () => {
+    for (const n of ["Bot", "Medium_Bot", "easy-bot", "EXPERTBOT"]) expect(validateUsername(n).ok).toBe(false);
+    expect(validateUsername("Talbot").ok).toBe(true);
   });
 });

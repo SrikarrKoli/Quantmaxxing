@@ -60,3 +60,21 @@ export function botStateAt(events: BotEvent[], elapsedMs: number) {
   }
   return { correct, wrong, lastCorrectAtMs };
 }
+
+/** Rough correct answers per minute a bot level reaches (the schedule slows ~12% on average). */
+export function botPacePerMin(level: BotLevel): number {
+  return 60_000 / (BOT_LEVELS[level].meanMs * 1.12);
+}
+
+/**
+ * Pick the bot level most likely to give a close game: the player's recent pace
+ * (correct per minute) when known, otherwise their rating, otherwise Easy.
+ */
+export function botLevelFor(p: { pace?: number; rating?: number }): BotLevel {
+  const levels = Object.keys(BOT_LEVELS) as BotLevel[];
+  if (p.pace !== undefined && Number.isFinite(p.pace) && p.pace > 0) {
+    return levels.reduce((best, l) => (Math.abs(botPacePerMin(l) - p.pace!) < Math.abs(botPacePerMin(best) - p.pace!) ? l : best));
+  }
+  if (p.rating !== undefined) return p.rating < 1150 ? "easy" : p.rating < 1300 ? "medium" : p.rating < 1450 ? "hard" : "expert";
+  return "easy";
+}

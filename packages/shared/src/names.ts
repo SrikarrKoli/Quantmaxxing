@@ -1,3 +1,4 @@
+import { BOT_LEVELS } from "./bot";
 const ADJECTIVES = [
   "Swift", "Quiet", "Prime", "Rapid", "Sharp", "Steady", "Bold", "Clever", "Lucky", "Brisk",
   "Nimble", "Calm", "Keen", "Lunar", "Solar", "Amber", "Cobalt", "Crimson", "Silver", "Golden",
@@ -27,5 +28,7 @@ export function validateUsername(name: unknown): { ok: true; name: string } | { 
   if (!USERNAME_RE.test(trimmed)) return { ok: false, reason: USERNAME_RULE };
   const lower = trimmed.toLowerCase();
   if (BLOCKED.some((b) => lower.includes(b))) return { ok: false, reason: "That username isn't available." };
+  const flat = lower.replace(/[-_]/g, "");
+  if (flat === "bot" || Object.keys(BOT_LEVELS).some((l) => flat === `${l}bot`)) return { ok: false, reason: "That username isn't available." };
   return { ok: true, name: trimmed };
 }

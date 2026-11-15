@@ -35,6 +35,13 @@ export interface RecordInput {
  * batch (a single transaction). The match id is the primary key, so a retried
  * write fails as a whole and ratings can never be applied twice.
  */
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Share of correct answers credited as XP for the nth bot-filled game in 24 hours. */
+export function botXpShare(gamesToday: number): number {
+  return gamesToday < 5 ? 1 : gamesToday < 10 ? 0.5 : 0;
+}
+
 export async function recordMatch(env: Env, input: RecordInput) {
   const uids = input.players.map((p) => p.uid).filter((u): u is string => !!u);
   const current = new Map<string, { rating: number; ratedGames: number }>();
@@ -45,6 +52,20 @@ export async function recordMatch(env: Env, input: RecordInput) {
       .bind(...uids)
       .all<{ uid: string; rating: number; rated_games: number }>();
     for (const r of rows.results) current.set(r.uid, { rating: r.rating, ratedGames: r.rated_games });
+  }
+  // Bot-filled queue games count toward XP on a daily taper so levels can't be farmed against bots.
+  const botFill = input.mode !== "bot" && input.players.some((p) => p.kind === "bot");
+  const botGamesToday = new Map<string, number>();
+  if (botFill) {
+    for (const uid of uids) {
+      const row = await env.DB.prepare(
+        `SELECT COUNT(*) AS n FROM match_players me
+           JOIN match_players b ON b.match_id = me.match_id AND b.kind = 'bot'
+           JOIN matches m ON m.id = me.match_id
+         WHERE me.uid = ? AND m.mode != 'bot' AND m.started_at > ?`,
+      ).bind(uid, input.startedAt - DAY_MS).first<{ n: number }>();
+      botGamesToday.set(uid, Number(row?.n ?? 0));
+    }
   }
   const rated = input.rated && uids.length === 2 && uids.every((u) => current.has(u));
   const next = rated && input.rate ? input.rate(current) : undefined;
@@ -70,7 +91,8 @@ export async function recordMatch(env: Env, input: RecordInput) {
       ),
     );
     if (cur && p.uid) {
-      const counted = input.mode !== "bot";
+      const counted = input.mode !== "bot" && !botFill;
+      const xp = input.mode === "bot" ? 0 : botFill ? Math.floor(p.correct * botXpShare(botGamesToday.get(p.uid) ?? 0)) : p.correct;
       stmts.push(
         env.DB.prepare(
           `UPDATE players SET
@@ -83,7 +105,7 @@ export async function recordMatch(env: Env, input: RecordInput) {
         ).bind(
           after ?? null, after !== undefined ? 1 : 0,
           counted && p.outcome === "win" ? 1 : 0, counted && p.outcome === "loss" ? 1 : 0, counted && p.outcome === "draw" ? 1 : 0,
-          counted ? p.correct : 0,
+          xp,
           input.duration, p.correct, p.correct, p.uid,
         ),
       );

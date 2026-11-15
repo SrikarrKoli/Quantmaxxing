@@ -132,8 +132,8 @@ export function parseClientMsg(raw: unknown): ClientMsg | null {
 export type QueueKind = "casual" | "ranked";
 
 export type LobbyServerMsg =
-  | { t: "queued"; queue: QueueKind; duration: DurationSec; waiting: number }
-  | { t: "matched"; roomId: string; mode: Mode }
+  | { t: "queued"; queue: QueueKind; duration: DurationSec; waiting: number; /** Milliseconds until a bot is matched in if no human shows up. */ botInMs?: number }
+  | { t: "matched"; roomId: string; mode: Mode; bot?: boolean }
   | { t: "error"; code: string; message: string };
 
 export type LobbyClientMsg = { t: "ping"; c: number } | { t: "leave" };
