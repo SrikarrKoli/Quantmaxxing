@@ -10,10 +10,10 @@ import { Practice } from "./screens/Practice";
 
 function Screen({ path }: { path: string }) {
   const s = useSession();
+  if (path === "/practice") return <Practice />;
   if (s.user && s.needsProfile && path !== "/account/username") return <ChooseUsername />;
   let m: RegExpMatchArray | null;
   if (path === "/") return <Home />;
-  if (path === "/practice") return <Practice />;
   if ((m = path.match(/^\/r\/([A-Za-z0-9]{6})$/))) return <RoomScreen roomId={`code-${m[1]!.toUpperCase()}`} />;
   if ((m = path.match(/^\/m\/([A-Za-z0-9-]{6,64})$/))) return <RoomScreen roomId={m[1]!} />;
   if ((m = path.match(/^\/queue\/(casual|ranked)$/))) return <Queue kind={m[1] as "casual" | "ranked"} />;
