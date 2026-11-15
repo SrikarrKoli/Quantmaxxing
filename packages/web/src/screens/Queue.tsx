@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { RANKED_DURATION, botLevelFor, isDuration, type LobbyServerMsg } from "@qm/shared";
+import { useEffect, useRef, useState } from "react";
+import { RANKED_DURATION, botLevelFor, botName, isDuration, type BotLevel, type LobbyServerMsg } from "@qm/shared";
 import { api, wsUrl } from "../api";
 import { Link, navigate } from "../router";
 import { errorText, useSession } from "../session";
@@ -16,6 +16,7 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
   const [needName, setNeedName] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [since] = useState(Date.now());
+  const socket = useRef<WebSocket | null>(null);
   const [, tick] = useState(0);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
       catch (e) { setError(errorText(e)); return; }
       if (cancelled) return;
       sock = new WebSocket(wsUrl(`/ws/lobby?queue=${kind}&duration=${duration}&ticket=${encodeURIComponent(ticket)}${recentPace()}`));
+      socket.current = sock;
       sock.onmessage = (ev) => {
         const m = JSON.parse(ev.data as string) as LobbyServerMsg;
         if (m.t === "queued") { setWaiting(m.waiting); setBotAt(m.botInMs !== undefined ? Date.now() + m.botInMs : null); }
@@ -45,6 +47,7 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
     })();
     return () => {
       cancelled = true;
+      socket.current = null;
       if (sock?.readyState === WebSocket.OPEN) sock.send(JSON.stringify({ t: "leave" }));
       sock?.close(1000, "left");
     };
@@ -54,10 +57,13 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
 
   const secs = Math.floor((Date.now() - since) / 1000);
   const botIn = botAt === null ? null : Math.max(0, Math.ceil((botAt - Date.now()) / 1000));
-  const playBot = async () => {
+  const recommended = botLevelFor({ pace: storedPace(), rating: s.profile?.rating });
+  const playBot = async (level: BotLevel) => {
     const auth = await s.authHeaders();
     if (!auth) return;
-    const level = botLevelFor({ pace: storedPace(), rating: s.profile?.rating });
+    socket.current?.send(JSON.stringify({ t: "leave" }));
+    socket.current?.close(1000, "playing bot");
+    socket.current = null;
     try {
       const r = await api<{ roomId: string }>("/api/bot", { method: "POST", body: { duration, level }, auth });
       navigate(`/m/${r.roomId}`, true);
@@ -80,7 +86,17 @@ export function Queue({ kind }: { kind: "casual" | "ranked" }) {
           {kind === "ranked" ? " Bot games are unrated." : ""}
         </p>
       )}
-      {!error && <p><button className="link" onClick={playBot}>Play a bot now</button></p>}
+      {!error && (
+        <div className="drawer" aria-label="Play a bot now">
+          <p className="hint" style={{ margin: 0 }}>Play a bot now:</p>
+          <div className="seg" role="group" aria-label="Choose bot difficulty">
+            {(["easy", "medium", "hard"] as BotLevel[]).map((level) => (
+              <button key={level} onClick={() => playBot(level)}>{botName(level)}</button>
+            ))}
+          </div>
+          <p className="hint" style={{ margin: 0 }}>{botName(recommended)} recommended for you.</p>
+        </div>
+      )}
       <Link to="/" className="btn ghost">Cancel</Link>
     </main>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { BOT_LEVELS, DURATIONS, USERNAME_RULE, validateUsername, type BotLevel, type DurationSec } from "@qm/shared";
+import { BOT_LEVELS, DURATIONS, USERNAME_RULE, botName, validateUsername, type BotLevel, type DurationSec } from "@qm/shared";
 import { api, type AuthHeaders } from "../api";
 import { Link, navigate } from "../router";
 import { errorText, useSession } from "../session";
@@ -76,7 +76,7 @@ export function Home() {
         <div className="drawer">
           <div className="seg" role="radiogroup" aria-label="Bot level" style={{ marginBottom: 0 }}>
             {(Object.keys(BOT_LEVELS) as BotLevel[]).map((l) => (
-              <button key={l} role="radio" aria-checked={level === l} className={level === l ? "on" : ""} onClick={() => setLevel(l)}>{BOT_LEVELS[l].label}</button>
+              <button key={l} role="radio" aria-checked={level === l} className={level === l ? "on" : ""} onClick={() => setLevel(l)}>{botName(l)}</button>
             ))}
           </div>
           <button className="btn primary" disabled={busy} onClick={() => run({ kind: "bot", level })}>Start {len(duration)} bot match</button>

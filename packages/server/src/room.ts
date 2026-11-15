@@ -1,5 +1,5 @@
 import {
-  answerOf, botSchedule, botStateAt, BOT_LEVELS, COUNTDOWN_MS, END_GRACE_MS, eloUpdate, isDuration,
+  answerOf, botName, botSchedule, botStateAt, COUNTDOWN_MS, END_GRACE_MS, eloUpdate, isDuration,
   LOOKAHEAD, MAX_ROOM_PLAYERS, MIN_SUBMIT_GAP_MS, parseClientMsg, placements, questionAt,
   STARTING_HEARTS, WRONG_COOLDOWN_MS,
   type BotEvent, type BotLevel, type Device, type DurationSec, type EndReason, type MatchResults,
@@ -304,7 +304,7 @@ export class Room implements DurableObject {
     if (cfg.mode === "bot" || (cfg.allowed && cfg.botLevel)) {
       const level = cfg.botLevel ?? "medium";
       bot = { key: BOT_KEY, level };
-      runs[BOT_KEY] = newRun({ key: BOT_KEY, name: `${BOT_LEVELS[level].label} Bot`, kind: "bot", device: "unknown" });
+      runs[BOT_KEY] = newRun({ key: BOT_KEY, name: botName(level), kind: "bot", device: "unknown" });
     }
     const startAt = now + COUNTDOWN_MS;
     this.match = {

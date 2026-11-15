@@ -125,7 +125,7 @@ describe("bot fill", () => {
     }
   });
   it("reserves bot names", () => {
-    for (const n of ["Bot", "Medium_Bot", "easy-bot", "EXPERTBOT"]) expect(validateUsername(n).ok).toBe(false);
+    for (const n of ["Bot", "Medium_Bot", "easy-bot", "EXPERTBOT", "Quant_Trader"]) expect(validateUsername(n).ok).toBe(false);
     expect(validateUsername("Talbot").ok).toBe(true);
   });
 });

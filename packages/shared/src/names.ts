@@ -29,6 +29,8 @@ export function validateUsername(name: unknown): { ok: true; name: string } | { 
   const lower = trimmed.toLowerCase();
   if (BLOCKED.some((b) => lower.includes(b))) return { ok: false, reason: "That username isn't available." };
   const flat = lower.replace(/[-_]/g, "");
-  if (flat === "bot" || Object.keys(BOT_LEVELS).some((l) => flat === `${l}bot`)) return { ok: false, reason: "That username isn't available." };
+  if (flat === "bot" || flat === "quanttrader" || Object.keys(BOT_LEVELS).some((l) => flat === `${l}bot`)) {
+    return { ok: false, reason: "That username isn't available." };
+  }
   return { ok: true, name: trimmed };
 }

@@ -8,6 +8,10 @@ export const BOT_LEVELS = {
 } as const;
 export type BotLevel = keyof typeof BOT_LEVELS;
 
+export function botName(level: BotLevel): string {
+  return level === "hard" ? "Quant Trader" : `${BOT_LEVELS[level].label} Bot`;
+}
+
 export function isBotLevel(v: unknown): v is BotLevel {
   return typeof v === "string" && v in BOT_LEVELS;
 }
