@@ -1,12 +1,11 @@
 export const DURATIONS = [30, 60, 120] as const;
 export type DurationSec = (typeof DURATIONS)[number];
 export const RANKED_DURATION: DurationSec = 60;
-export const STARTING_HEARTS = 3;
 /** Questions revealed ahead of the player's current index. */
 export const LOOKAHEAD = 3;
 /** Submissions closer together than this are dropped (key-repeat / scripted spam). */
 export const MIN_SUBMIT_GAP_MS = 60;
-/** After a wrong answer, further wrong submissions in this window are ignored. */
+/** After a wrong answer, further wrong submissions in this window are ignored (stops guess spamming). */
 export const WRONG_COOLDOWN_MS = 350;
 /** Answers arriving this long after the clock hits zero still count (network grace). */
 export const END_GRACE_MS = 150;
@@ -17,14 +16,15 @@ export function isDuration(n: unknown): n is DurationSec {
   return typeof n === "number" && (DURATIONS as readonly number[]).includes(n);
 }
 
-export type EndReason = "time" | "hearts" | "resign" | "abandoned";
+export type EndReason = "time" | "resign" | "abandoned";
 
 export interface Standing {
   key: string;
   correct: number;
   wrong: number;
+  /** True once the player resigned or left. */
   eliminated: boolean;
-  /** ms since match start when eliminated (hearts or resign). */
+  /** ms since match start when the player resigned. */
   eliminatedAtMs: number | null;
   /** ms since match start when the player reached their final correct count. */
   lastCorrectAtMs: number | null;
@@ -32,10 +32,10 @@ export interface Standing {
 
 /**
  * Ordering used everywhere (1v1, bot, rooms):
- * 1. Players still alive rank above eliminated players.
- * 2. Alive: more correct answers, then fewer wrong answers, then whoever reached
+ * 1. Players still in the match rank above players who resigned.
+ * 2. Still in: more correct answers, then fewer wrong answers, then whoever reached
  *    their score first. Identical on all three is a draw.
- * 3. Eliminated: later elimination ranks higher, then more correct answers.
+ * 3. Resigned: later resignation ranks higher, then more correct answers.
  */
 export function compareStandings(x: Standing, y: Standing): number {
   if (x.eliminated !== y.eliminated) return x.eliminated ? 1 : -1;

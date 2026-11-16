@@ -1,10 +1,11 @@
 import { hashString, mulberry32 } from "./rng";
 
+/** Average correct per minute: Easy ~12, Medium ~20, Hard ~35, Quant Trader ~59. */
 export const BOT_LEVELS = {
-  easy: { label: "Easy", meanMs: 2600, jitter: 0.45, wrongRate: 0.05 },
-  medium: { label: "Medium", meanMs: 1700, jitter: 0.4, wrongRate: 0.04 },
-  hard: { label: "Hard", meanMs: 1150, jitter: 0.35, wrongRate: 0.03 },
-  expert: { label: "Expert", meanMs: 800, jitter: 0.3, wrongRate: 0.02 },
+  easy: { label: "Easy", meanMs: 4300, jitter: 0.45, wrongRate: 0.07 },
+  medium: { label: "Medium", meanMs: 2600, jitter: 0.4, wrongRate: 0.05 },
+  hard: { label: "Hard", meanMs: 1470, jitter: 0.35, wrongRate: 0.03 },
+  expert: { label: "Expert", meanMs: 850, jitter: 0.3, wrongRate: 0.02 },
 } as const;
 export type BotLevel = keyof typeof BOT_LEVELS;
 
@@ -24,14 +25,13 @@ export interface BotEvent {
 /**
  * The bot's whole match is a pure function of (seed, level, duration) so the
  * server can compute its state at any instant without storing per-answer
- * writes. Bots never make a third mistake.
+ * writes.
  */
 export function botSchedule(seed: string, level: BotLevel, durationMs: number): BotEvent[] {
   const cfg = BOT_LEVELS[level];
   const rng = mulberry32(hashString(`bot:${seed}:${level}`));
   const events: BotEvent[] = [];
   let t = 0;
-  let wrong = 0;
   let index = 0;
   while (t < durationMs) {
     // Later questions are a bit larger, so slow down slightly as the sprint goes on.
@@ -39,8 +39,7 @@ export function botSchedule(seed: string, level: BotLevel, durationMs: number): 
     const step = cfg.meanMs * ramp * (1 + (rng() * 2 - 1) * cfg.jitter);
     t += Math.max(250, step);
     if (t >= durationMs) break;
-    if (wrong < 2 && rng() < cfg.wrongRate) {
-      wrong++;
+    if (rng() < cfg.wrongRate) {
       events.push({ atMs: Math.round(t), kind: "wrong" });
       t += 400;
       continue;
@@ -65,9 +64,9 @@ export function botStateAt(events: BotEvent[], elapsedMs: number) {
   return { correct, wrong, lastCorrectAtMs };
 }
 
-/** Rough correct answers per minute a bot level reaches (the schedule slows ~12% on average). */
+/** Rough correct answers per minute a bot level reaches (slowdown and mistakes cost ~18% on average). */
 export function botPacePerMin(level: BotLevel): number {
-  return 60_000 / (BOT_LEVELS[level].meanMs * 1.12);
+  return 60_000 / (BOT_LEVELS[level].meanMs * 1.18);
 }
 
 /**

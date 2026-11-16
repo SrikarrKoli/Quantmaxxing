@@ -53,7 +53,7 @@ export function Home() {
   return (
     <main className="page center home">
       <h1>Head-to-head mental math</h1>
-      <p className="sub">Same questions. One clock. Three hearts.</p>
+      <p className="sub">Same questions. One clock. Most correct wins.</p>
       <div className="acts">
         <button className="btn primary" disabled={busy} onClick={() => run({ kind: "casual" })}>Find opponent</button>
         {s.profile ? (
@@ -100,7 +100,7 @@ export function Home() {
         <ol>
           <li><b>Same questions.</b> Everyone in the match gets the same problems in the same order.</li>
           <li><b>Most correct wins.</b> Correct answers submit themselves; a wrong one keeps you on the problem.</li>
-          <li><b>Three hearts.</b> Each wrong answer costs one. The third knocks you out.</li>
+          <li><b>No knockouts.</b> Play the whole clock. If scores tie, fewer wrong answers wins.</li>
         </ol>
       </div>
       {pending && <GuestNameDialog onDone={(auth) => { const a = pending; setPending(null); void run(a, auth); }} onCancel={() => setPending(null)} />}

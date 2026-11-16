@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  DURATIONS, STARTING_HEARTS, WRONG_COOLDOWN_MS, answerOf, formatQuestion, isDuration, questionAt, resultShareText,
+  DURATIONS, WRONG_COOLDOWN_MS, answerOf, formatQuestion, isDuration, questionAt, resultShareText,
   type DurationSec,
 } from "@qm/shared";
 import { Link, navigate } from "../router";
 import { ShareButton } from "../ShareButton";
 import { track } from "../track";
+import { addSessionRun } from "../runs";
+import { RunProgress } from "./Runs";
+import { useSession } from "../session";
 
 const len = (d: number) => (d < 60 ? `${d}s` : `${d / 60} min`);
 
@@ -25,7 +28,7 @@ export function Practice() {
   const [shake, setShake] = useState(0);
   const lastWrong = useRef(0);
   const input = useRef<HTMLInputElement>(null);
-  const hearts = STARTING_HEARTS - wrong;
+  const s = useSession();
 
   useEffect(() => {
     if (phase !== "play") return;
@@ -36,11 +39,15 @@ export function Practice() {
   useEffect(() => { if (phase === "play") input.current?.focus(); }, [phase, shake]);
 
   useEffect(() => {
-    if (phase === "play" && (now >= endAt || hearts <= 0)) {
-      setPhase("done");
-      track("practice_finish");
-    }
-  }, [phase, now, endAt, hearts]);
+    if (phase === "play" && now >= endAt) finish();
+  }, [phase, now, endAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const finish = () => {
+    setPhase("done");
+    track("practice_finish");
+    const run = { id: `p:${seed}`, mode: "practice" as const, duration, correct, wrong, at: Date.now() };
+    void s.authHeaders().then((auth) => addSessionRun(run, auth), () => addSessionRun(run));
+  };
 
   const start = () => {
     setSeed(crypto.randomUUID());
@@ -69,7 +76,7 @@ export function Practice() {
     return (
       <main className="page center home">
         <h1>Solo practice</h1>
-        <p className="sub">Same rules, no opponent. Runs in your browser and works offline. Scores aren't saved.</p>
+        <p className="sub">Same rules, no opponent. Runs in your browser and works offline. {s.profile ? "Every run is saved to your account." : "Your runs are kept for this visit; sign in to keep them for good."}</p>
         <div className="seg" role="radiogroup" aria-label="Match length">
           {DURATIONS.map((d) => (
             <button key={d} role="radio" aria-checked={duration === d} className={duration === d ? "on" : ""} onClick={() => setDuration(d)}>{len(d)}</button>
@@ -83,11 +90,12 @@ export function Practice() {
   if (phase === "done") {
     return (
       <main className="page center results">
-        <h1 className="verdict">{correct} correct</h1>
-        <p className="mute">Solo practice · {len(duration)} · {hearts <= 0 ? "Out of hearts" : "Time"} · {wrong} wrong</p>
+        <h1 className="verdict">Score: {correct}</h1>
+        <p className="mute">Solo practice · {len(duration)}</p>
+        <RunProgress id={`p:${seed}`} />
         <div className="row" style={{ justifyContent: "center", margin: "1rem 0 1.5rem" }}>
           <button className="btn primary" onClick={start}>Play again</button>
-          <ShareButton text={resultShareText({ outcome: "practice", correct, wrong, hearts: Math.max(0, hearts), durationSec: duration })} />
+          <ShareButton text={resultShareText({ outcome: "practice", correct, wrong, durationSec: duration })} />
           <button className="btn" onClick={() => navigate("/")}>Find an opponent</button>
         </div>
       </main>
@@ -99,9 +107,6 @@ export function Practice() {
       <div className="hud">
         <div>
           <span>Time: {Math.max(0, Math.ceil((endAt - now) / 1000))}</span>
-          <span className="hearts" role="img" aria-label={`${hearts} of ${STARTING_HEARTS} hearts left`}>
-            {Array.from({ length: STARTING_HEARTS }, (_, i) => (i < hearts ? "●" : "○")).join(" ")}
-          </span>
         </div>
         <div className="vs">Score: <b>{correct}</b></div>
       </div>
@@ -113,9 +118,9 @@ export function Practice() {
           value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKey}
           inputMode="numeric" autoComplete="off" autoCorrect="off" spellCheck={false}
         />
-        <p className="miss" aria-live="polite">{miss ? <><s>{miss}</s>Wrong. {hearts} {hearts === 1 ? "heart" : "hearts"} left.</> : null}</p>
+        <p className="miss" aria-live="polite">{miss ? <><s>{miss}</s>Wrong.</> : null}</p>
       </div>
-      <button className="btn ghost resign" onClick={() => { setPhase("done"); track("practice_finish"); }}>End</button>
+      <button className="btn ghost resign" onClick={finish}>End</button>
     </main>
   );
 }

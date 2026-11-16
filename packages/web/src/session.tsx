@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { onIdTokenChanged, signOut as fbSignOut, type User } from "firebase/auth";
 import { api, ApiError, type AuthHeaders } from "./api";
 import { firebaseAuth } from "./firebase";
+import { claimGuestRuns } from "./runs";
 
 interface Guest { token: string; key: string; username: string }
 export interface Profile {
@@ -50,6 +51,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const res = await api<{ profile: Profile | null }>("/api/me", { auth: { Authorization: `Bearer ${token}` } });
       setProfile(res.profile);
       setNeedsProfile(!res.profile);
+      if (res.profile) claimGuestRuns({ Authorization: `Bearer ${token}` }, loadGuest()?.token).catch(() => {});
     } catch {
       setProfile(null);
     }

@@ -37,9 +37,9 @@ describe("standings", () => {
       base({ key: "b", correct: 9, lastCorrectAtMs: 400 }),
     )).toBeGreaterThan(0);
   });
-  it("puts eliminated players below alive players regardless of score", () => {
+  it("puts players who resigned below players still in the match", () => {
     const p = placements([
-      base({ key: "fast", correct: 30, wrong: 3, eliminated: true, eliminatedAtMs: 20000 }),
+      base({ key: "fast", correct: 30, wrong: 0, eliminated: true, eliminatedAtMs: 20000 }),
       base({ key: "slow", correct: 5 }),
     ]);
     expect(p.get("slow")).toBe(1);
@@ -50,7 +50,7 @@ describe("standings", () => {
     expect(p.get("a")).toBe(1);
     expect(p.get("b")).toBe(1);
   });
-  it("ranks later elimination higher among eliminated players", () => {
+  it("ranks a later resignation higher among players who resigned", () => {
     const p = placements([
       base({ key: "early", correct: 20, eliminated: true, eliminatedAtMs: 1000 }),
       base({ key: "late", correct: 2, eliminated: true, eliminatedAtMs: 9000 }),
@@ -76,16 +76,21 @@ describe("rating", () => {
 });
 
 describe("bot", () => {
-  it("is deterministic and never makes a third mistake", () => {
+  it("is deterministic and stays inside the clock", () => {
     for (const level of ["easy", "medium", "hard", "expert"] as const) {
       const s = botSchedule("x", level, 120000);
       expect(s).toEqual(botSchedule("x", level, 120000));
-      expect(s.filter((e) => e.kind === "wrong").length).toBeLessThanOrEqual(2);
       expect(s.every((e) => e.atMs < 120000)).toBe(true);
     }
-    const s = botSchedule("y", "hard", 60000);
-    expect(botStateAt(s, 60000).correct).toBeGreaterThan(30);
-    expect(botStateAt(s, 0).correct).toBe(0);
+    expect(botStateAt(botSchedule("y", "hard", 60000), 0).correct).toBe(0);
+  });
+  it("averages about 12 / 20 / 35 / 59 correct in a 1-minute match", () => {
+    const target = { easy: 12, medium: 20, hard: 35, expert: 59 } as const;
+    for (const level of ["easy", "medium", "hard", "expert"] as const) {
+      let total = 0;
+      for (let i = 0; i < 200; i++) total += botStateAt(botSchedule(`avg${i}`, level, 60000), 60000).correct;
+      expect(Math.abs(total / 200 - target[level])).toBeLessThan(1.5);
+    }
   });
 });
 
@@ -113,8 +118,9 @@ describe("bot fill", () => {
     expect(botLevelFor({})).toBe("easy");
     expect(botLevelFor({ rating: 1200 })).toBe("medium");
     expect(botLevelFor({ rating: 1600 })).toBe("expert");
-    expect(botLevelFor({ pace: 20, rating: 1600 })).toBe("easy");
-    expect(botLevelFor({ pace: 47 })).toBe("hard");
+    expect(botLevelFor({ pace: 12, rating: 1600 })).toBe("easy");
+    expect(botLevelFor({ pace: 21 })).toBe("medium");
+    expect(botLevelFor({ pace: 36 })).toBe("hard");
     expect(botLevelFor({ pace: 120 })).toBe("expert");
     expect(botLevelFor({ pace: Number.NaN })).toBe("easy");
   });
@@ -132,11 +138,11 @@ describe("bot fill", () => {
 
 describe("sharing and events", () => {
   it("builds a plain result card", () => {
-    expect(resultShareText({ outcome: "win", correct: 24, wrong: 1, hearts: 2, durationSec: 60, opponent: { name: "Quant Trader", correct: 19 } }))
-      .toBe("Quantmaxxing · 1 min\nBeat Quant Trader 24–19\n● ● ○  1 wrong\nhttps://quantmaxxing.web.app/?s=share");
-    expect(resultShareText({ outcome: "practice", correct: 30, wrong: 0, hearts: 3, durationSec: 120 }, "http://x"))
-      .toBe("Quantmaxxing · 2 min\n30 correct\n● ● ●  0 wrong\nhttp://x/?s=share");
-    expect(resultShareText({ outcome: "loss", correct: 10, wrong: 3, hearts: 0, durationSec: 30, opponent: { name: "ann", correct: 12 }, rated: { delta: -14.4, after: 1185.6 } }))
+    expect(resultShareText({ outcome: "win", correct: 24, wrong: 1, durationSec: 60, opponent: { name: "Quant Trader", correct: 19 } }))
+      .toBe("Quantmaxxing · 1 min\nBeat Quant Trader 24–19\n1 wrong\nhttps://quantmaxxing.web.app/?s=share");
+    expect(resultShareText({ outcome: "practice", correct: 30, wrong: 0, durationSec: 120 }, "http://x"))
+      .toBe("Quantmaxxing · 2 min\n30 correct\n0 wrong\nhttp://x/?s=share");
+    expect(resultShareText({ outcome: "loss", correct: 10, wrong: 3, durationSec: 30, opponent: { name: "ann", correct: 12 }, rated: { delta: -14.4, after: 1185.6 } }))
       .toContain("Lost to ann 10–12 · Ranked −14 → 1186");
   });
   it("only accepts known events and short source tokens", () => {
