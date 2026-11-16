@@ -90,8 +90,8 @@ export function Practice() {
   if (phase === "done") {
     return (
       <main className="page center results">
-        <h1 className="verdict">{correct} correct</h1>
-        <p className="mute">Solo practice · {len(duration)} · {wrong} wrong</p>
+        <h1 className="verdict">Score: {correct}</h1>
+        <p className="mute">Solo practice · {len(duration)}</p>
         <RunProgress id={`p:${seed}`} />
         <div className="row" style={{ justifyContent: "center", margin: "1rem 0 1.5rem" }}>
           <button className="btn primary" onClick={start}>Play again</button>

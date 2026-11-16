@@ -42,7 +42,7 @@ function Spark({ runs, duration }: { runs: RunRecord[]; duration: number }) {
   return (
     <figure className="spark">
       <svg viewBox="0 0 300 60" preserveAspectRatio="none" role="img"
-        aria-label={`Correct answers per ${len(duration)} run, oldest to newest: ${pts.map((r) => r.correct).join(", ")}`}>
+        aria-label={`Score per ${len(duration)} run, oldest to newest: ${pts.map((r) => r.correct).join(", ")}`}>
         <line x1="0" y1="56" x2="300" y2="56" />
         <polyline points={pts.map((r, i) => `${x(i)},${y(r.correct)}`).join(" ")} vectorEffect="non-scaling-stroke" />
       </svg>
@@ -114,7 +114,7 @@ export function Runs() {
       )}
       {total > 0 && (
         <table>
-          <thead><tr><th scope="col">#</th><th scope="col" className="l">When</th><th scope="col" className="l">Mode</th><th scope="col">Length</th><th scope="col">Correct</th><th scope="col">Wrong</th><th scope="col">Change</th></tr></thead>
+          <thead><tr><th scope="col">#</th><th scope="col" className="l">When</th><th scope="col" className="l">Mode</th><th scope="col">Length</th><th scope="col">Score</th><th scope="col">Change</th></tr></thead>
           <tbody>
             {rows.map((r, i) => (
               <tr key={r.id}>
@@ -123,7 +123,6 @@ export function Runs() {
                 <td className="l">{MODE[r.mode]}{r.opponent ? ` vs ${r.opponent}` : ""}{r.outcome ? ` · ${r.outcome}` : ""}</td>
                 <td>{len(r.duration)}</td>
                 <td>{r.correct}</td>
-                <td>{r.wrong}</td>
                 <td>{r.change === null ? "–" : <>{signed(r.change)}{r.best ? " best" : ""}</>}</td>
               </tr>
             ))}

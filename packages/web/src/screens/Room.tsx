@@ -331,10 +331,10 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
       {mine && <RunProgress id={`m:${results.matchId}`} />}
       {rivals.length > 1 && (
         <table>
-          <thead><tr><th scope="col">#</th><th scope="col" className="l">Player</th><th scope="col">Correct</th><th scope="col">Wrong</th></tr></thead>
+          <thead><tr><th scope="col">#</th><th scope="col" className="l">Player</th><th scope="col">Score</th></tr></thead>
           <tbody>
             {results.rows.map((r) => (
-              <tr key={r.key} className={r.key === me ? "me" : ""}><td>{r.placement}</td><td className="l">{r.name}</td><td>{r.correct}</td><td>{r.wrong}{r.eliminated ? " · resigned" : ""}</td></tr>
+              <tr key={r.key} className={r.key === me ? "me" : ""}><td>{r.placement}</td><td className="l">{r.name}</td><td>{r.correct}{r.eliminated ? " · resigned" : ""}</td></tr>
             ))}
           </tbody>
         </table>
