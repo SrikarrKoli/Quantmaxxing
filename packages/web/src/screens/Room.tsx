@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
-  DURATIONS, STARTING_HEARTS, answerOf, formatQuestion, questionAt, resultShareText,
+  DURATIONS, answerOf, formatQuestion, questionAt, resultShareText,
   type DurationSec, type MatchResults, type ProgressState, type Question, type RoomSnapshot, type SelfState, type ServerMsg,
 } from "@qm/shared";
 import { api, wsUrl } from "../api";
@@ -10,6 +10,8 @@ import { GuestNameDialog } from "./Home";
 import { savePace } from "../pace";
 import { ShareButton } from "../ShareButton";
 import { track } from "../track";
+import { addSessionRun } from "../runs";
+import { RunProgress } from "./Runs";
 
 interface MatchInfo { matchId: string; startAt: number; endAt: number; duration: DurationSec }
 
@@ -162,7 +164,6 @@ export function RoomScreen({ roomId }: { roomId: string }) {
     const elapsed = Math.max(0, serverNow - match.startAt);
     const others = Object.values(progress).filter((p) => p.key !== me);
     const mine = self?.correct ?? 0;
-    const hearts = self?.hearts ?? 0;
     const lead = others.length === 1 ? others[0]! : null;
     const lanes = [{ key: me ?? "you", name: "You", correct: mine, out: !!self?.eliminated, you: true },
       ...others.map((p) => ({ key: p.key, name: nameOf(p.key), correct: p.correct, out: p.eliminated, you: false }))];
@@ -171,9 +172,6 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         <div className="hud">
           <div>
             <span aria-live="off">Time: {counting ? Math.round(total / 1000) : Math.max(0, Math.ceil(remaining / 1000))}</span>
-            <span className="hearts" role="img" aria-label={`${hearts} of ${STARTING_HEARTS} hearts left`}>
-              {Array.from({ length: STARTING_HEARTS }, (_, i) => (i < hearts ? "●" : "○")).join(" ")}
-            </span>
           </div>
           {lead ? (
             <div className="vs" aria-label={`You ${mine}, ${nameOf(lead.key)} ${lead.correct}`}>
@@ -192,7 +190,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
               {room.mode !== "bot" && "bot" in progress && <p className="hint">No one's online right now, matched you with a bot.</p>}
             </>
           ) : out ? (
-            <p className="q small">{self ? "Out of hearts" : "Watching"}</p>
+            <p className="q small">{self ? "Resigned" : "Watching"}</p>
           ) : (
             <p className="q" aria-live="polite">{current ? formatQuestion(current) : "…"}</p>
           )}
@@ -204,9 +202,9 @@ export function RoomScreen({ roomId }: { roomId: string }) {
             disabled={!playing || out} aria-describedby="answer-help"
           />
           <p className="miss" aria-live="polite">
-            {miss && !out ? <><s>{miss}</s>Wrong. {hearts} {hearts === 1 ? "heart" : "hearts"} left.</> : null}
+            {miss && !out ? <><s>{miss}</s>Wrong.</> : null}
           </p>
-          <p id="answer-help" className="sr">Correct answers submit themselves. Press Enter to commit a different answer; the third wrong answer knocks you out.</p>
+          <p id="answer-help" className="sr">Correct answers submit themselves. Press Enter to commit a different answer; a wrong answer keeps you on the same problem.</p>
         </div>
         <div className="tally" aria-hidden="true">
           {lanes.map((l) => (
@@ -280,10 +278,17 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
   const best = rivals[0];
   const score = mine && best ? ` ${mine.correct}–${best.correct}` : "";
   const headline = !mine ? "Match over" : mine.outcome === "win" ? `You won${score}` : mine.outcome === "draw" ? `Draw${score}` : `You lost${score}`;
-  const reason = { time: "Time", hearts: "Out of hearts", resign: "Resigned", abandoned: "Opponent left" }[results.endReason];
+  const reason = ({ time: "Time", resign: "Resigned", abandoned: "Opponent left" } as Record<string, string>)[results.endReason] ?? "Time";
   const len = results.duration < 60 ? `${results.duration}s` : `${results.duration / 60} min`;
   const botFill = results.mode !== "bot" && rivals.some((r) => r.kind === "bot");
-  useEffect(() => { if (mine) savePace(mine.correct, results.duration); }, [results.matchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!mine) return;
+    savePace(mine.correct, results.duration);
+    addSessionRun({
+      id: `m:${results.matchId}`, mode: results.mode, duration: results.duration, correct: mine.correct, wrong: mine.wrong,
+      at: Date.now(), outcome: mine.outcome, ...(rivals.length === 1 && best ? { opponent: best.name } : {}),
+    });
+  }, [results.matchId]); // eslint-disable-line react-hooks/exhaustive-deps
   const delta = mine?.ratingAfter !== undefined && mine.ratingBefore !== undefined ? mine.ratingAfter - mine.ratingBefore : null;
   const again = async () => {
     if (results.mode === "private") return onRematch();
@@ -316,19 +321,20 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
         )}
         {mine && (
           <ShareButton text={resultShareText({
-            outcome: mine.outcome, correct: mine.correct, wrong: mine.wrong, hearts: mine.hearts, durationSec: results.duration,
+            outcome: mine.outcome, correct: mine.correct, wrong: mine.wrong, durationSec: results.duration,
             opponent: rivals.length === 1 && best ? { name: best.name, correct: best.correct } : undefined,
             rated: results.rated && delta !== null && mine.ratingAfter !== undefined ? { delta, after: mine.ratingAfter } : undefined,
           })} />
         )}
         <Link to="/" className="btn">Home</Link>
       </div>
+      {mine && <RunProgress id={`m:${results.matchId}`} />}
       {rivals.length > 1 && (
         <table>
-          <thead><tr><th scope="col">#</th><th scope="col" className="l">Player</th><th scope="col">Correct</th><th scope="col">Wrong</th><th scope="col">Hearts</th></tr></thead>
+          <thead><tr><th scope="col">#</th><th scope="col" className="l">Player</th><th scope="col">Correct</th><th scope="col">Wrong</th></tr></thead>
           <tbody>
             {results.rows.map((r) => (
-              <tr key={r.key} className={r.key === me ? "me" : ""}><td>{r.placement}</td><td className="l">{r.name}</td><td>{r.correct}</td><td>{r.wrong}</td><td>{r.eliminated ? "Out" : r.hearts}</td></tr>
+              <tr key={r.key} className={r.key === me ? "me" : ""}><td>{r.placement}</td><td className="l">{r.name}</td><td>{r.correct}</td><td>{r.wrong}{r.eliminated ? " · resigned" : ""}</td></tr>
             ))}
           </tbody>
         </table>
@@ -353,7 +359,7 @@ function Results({ results, me, room, ticks, questions, onRematch }: {
           </tbody>
         </table>
       )}
-      {mine && <p className="hint">{mine.correct} correct · {mine.wrong} wrong{mine.eliminated ? " · out of hearts" : ""}</p>}
+      {mine && <p className="hint">{mine.correct} correct · {mine.wrong} wrong{mine.eliminated ? " · resigned" : ""}</p>}
     </main>
   );
 }

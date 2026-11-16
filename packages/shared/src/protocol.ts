@@ -18,7 +18,6 @@ export interface SelfState {
   index: number;
   correct: number;
   wrong: number;
-  hearts: number;
   eliminated: boolean;
 }
 
@@ -26,7 +25,6 @@ export interface ProgressState {
   key: string;
   correct: number;
   wrong: number;
-  hearts: number;
   eliminated: boolean;
 }
 
@@ -38,7 +36,6 @@ export interface ResultRow {
   outcome: "win" | "loss" | "draw";
   correct: number;
   wrong: number;
-  hearts: number;
   eliminated: boolean;
   eliminatedAtMs: number | null;
   ratingBefore?: number;

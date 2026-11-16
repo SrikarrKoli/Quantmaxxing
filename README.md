@@ -36,7 +36,7 @@ Quantmaxxing is inspired by [Zetamac](https://arithmetic.zetamac.com/), but it's
 | **Fixed clock** | Matches last 30 seconds, 1 minute or 2 minutes. Ranked matches are always 1 minute. |
 | **Play at your own pace** | Players don't wait for each other. A correct answer moves you straight to the next problem. |
 | **Most correct wins** | When the clock runs out, the player with the most correct answers wins. If that's tied, fewer wrong answers wins, then whoever reached their score first. |
-| **Three hearts** | A wrong answer keeps you on the same problem and costs a heart: ● ● ○. The third wrong answer knocks you out. This stops people from spamming guesses. |
+| **No knockouts** | A wrong answer keeps you on the same problem and counts against you in a tie. There's a short pause after each wrong answer so spamming guesses doesn't pay. Everyone plays the full clock. |
 | **Live race** | During the match you see both scores and a tally race: one tick per correct answer along the match clock. |
 | **Results** | After the match there's a breakdown of every problem, showing who answered it and how long each player took. |
 
@@ -48,11 +48,11 @@ Quantmaxxing is inspired by [Zetamac](https://arithmetic.zetamac.com/), but it's
 | **Quick match** | Everyone | Get matched with someone at the same match length. If nobody else is around, a bot takes their place (see [Bots](#bots)). |
 | **Private room** | Everyone | Create a room with a 6-character code and share it with up to 7 friends. |
 | **Ranked** | Signed-in players | 1-minute matches against another signed-in player. These change your rating. |
-| **Solo practice** | Everyone | Same rules with no opponent. Runs entirely in the browser, so it works offline and when the server is busy. Scores aren't saved. |
+| **Solo practice** | Everyone | Same rules with no opponent. Runs entirely in the browser, so it works offline and when the server is busy. |
 
 Guests get a random suggested username, which they can reroll or replace with their own, and can play every mode except Ranked.
 
-After any match, **Share result** copies a plain-text result (score, opponent, hearts and a link) or opens the phone's share sheet. Links to the site show a preview image (`packages/web/public/og.png`).
+After any match, **Share result** copies a plain-text result (score, opponent, wrong answers and a link) or opens the phone's share sheet. Links to the site show a preview image (`packages/web/public/og.png`).
 
 ## Accounts, ratings and levels
 
@@ -61,6 +61,7 @@ After any match, **Share result** copies a plain-text result (score, opponent, h
 - **Leaderboard:** the top 100 ranked players by rating.
 - **Profiles:** public pages with rating, win/loss record, best 1-minute score and recent matches. Email addresses are never shown.
 - **Levels:** you level up from total correct answers across all games.
+- **Run history:** the Runs page lists every match and solo run with your score, wrong answers and the change from your last run at that length, plus a chart of your progress. Guests see the runs from their current visit (kept in the tab's session storage). Signed-in players get every run saved to their account; when a guest signs in, that browser's guest matches and unsaved solo runs move to the account. Solo runs only appear in your own history, never on the leaderboard.
 - **Deleting your account** removes your profile and anonymizes your past matches.
 
 ## Bots
@@ -74,14 +75,14 @@ New games don't have many players online at once, so the matchmaker uses bots to
 - **Ranked stays fair:** bot games in Ranked are unrated and don't affect your rating or the leaderboard.
 - **No XP farming:** bot games don't count as wins or losses. You get full XP for your first 5 bot games each day, half for the next 5, and none after that.
 
-| Bot | Average time per answer |
+| Bot | Correct answers per minute (average) |
 | --- | --- |
-| Easy Bot | about 2.6 s |
-| Medium Bot | about 1.7 s |
-| Hard Bot | about 1.15 s |
-| **Quant Trader** (Expert) | about 0.8 s |
+| Easy Bot | about 12 |
+| Medium Bot | about 20 |
+| Hard Bot | about 35 |
+| **Quant Trader** (Expert) | about 59 |
 
-Bots make occasional mistakes but never lose all three hearts.
+Bots start a little slower, speed up as they warm up, and make the occasional mistake.
 
 ## How it's built
 
@@ -120,11 +121,11 @@ packages/
   shared/   Rules, question generator, ratings, bots, username rules, wire protocol (+ unit tests)
   server/   Cloudflare Worker: HTTP API (src/index.ts), Lobby and Room Durable Objects,
             D1 queries (src/db.ts), token signing (src/auth.ts), SQL migrations
-  web/      React client: screens/ (Home, Queue, Room, Auth, Account, Leaderboard),
+  web/      React client: screens/ (Home, Queue, Room, Practice, Runs, Auth, Account, Leaderboard),
             session and API helpers, styles.css
 scripts/
   server-smoke.mjs   Plays full matches against a local server: guests, rooms, bots,
-                     queues, ranked ratings, hearts and bot fallback
+                     queues, ranked ratings, run history and bot fallback
 .github/workflows/ci.yml
 firebase.json        Hosting config and security headers
 ```
@@ -154,7 +155,7 @@ Open http://127.0.0.1:5173 and play as a guest. To try sign-in locally, copy `pa
 
 ```sh
 npm run typecheck    # TypeScript, all packages
-npm test             # Unit tests: questions, rules, hearts, ratings, bots, usernames
+npm test             # Unit tests: questions, rules, ratings, bots, run history, usernames
 npm run build        # Production build of the site
 npm run e2e:server   # Full-match smoke test (needs npm run dev:server running)
 ```

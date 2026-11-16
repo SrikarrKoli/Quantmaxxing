@@ -1,7 +1,7 @@
 import {
   answerOf, botName, botSchedule, botStateAt, COUNTDOWN_MS, END_GRACE_MS, eloUpdate, isDuration,
   LOOKAHEAD, MAX_ROOM_PLAYERS, MIN_SUBMIT_GAP_MS, parseClientMsg, placements, questionAt,
-  STARTING_HEARTS, WRONG_COOLDOWN_MS,
+  WRONG_COOLDOWN_MS,
   type BotEvent, type BotLevel, type Device, type DurationSec, type EndReason, type MatchResults,
   type Mode, type ProgressState, type PublicPlayer, type ResultRow, type RoomPhase, type RoomSnapshot,
   type SelfState, type ServerMsg, type Standing,
@@ -233,15 +233,13 @@ export class Room implements DurableObject {
 
   private selfState(run: PlayerRun): SelfState {
     return {
-      index: run.index, correct: run.correct, wrong: run.wrong,
-      hearts: Math.max(0, STARTING_HEARTS - run.wrong), eliminated: run.eliminatedAtMs !== null,
+      index: run.index, correct: run.correct, wrong: run.wrong, eliminated: run.eliminatedAtMs !== null,
     };
   }
 
   private progressOf(run: PlayerRun): ProgressState {
     return {
-      key: run.key, correct: run.correct, wrong: run.wrong,
-      hearts: Math.max(0, STARTING_HEARTS - run.wrong), eliminated: run.eliminatedAtMs !== null,
+      key: run.key, correct: run.correct, wrong: run.wrong, eliminated: run.eliminatedAtMs !== null,
     };
   }
 
@@ -442,7 +440,7 @@ export class Room implements DurableObject {
     if (!run || run.kind === "bot" || run.eliminatedAtMs !== null) return;
     const now = Date.now();
     if (now < m.startAt || now > m.endAt + END_GRACE_MS) return;
-    // Stale or duplicate submissions for an earlier question never cost a heart.
+    // Stale or duplicate submissions for an earlier question never count as wrong.
     if (i !== run.index) {
       this.send(ws, { t: "ack", i, ok: false, self: this.selfState(run) });
       return;
@@ -467,11 +465,9 @@ export class Room implements DurableObject {
     run.wrong++;
     run.lastWrongAt = now;
     run.mistakes.push(elapsed);
-    if (run.wrong >= STARTING_HEARTS) run.eliminatedAtMs = elapsed;
     this.send(ws, { t: "ack", i, ok: false, self: this.selfState(run) });
     this.broadcast({ t: "progress", p: this.progressOf(run) });
-    if (run.eliminatedAtMs !== null) await this.checkEarlyEnd("hearts");
-    else await this.saveMatch();
+    await this.saveMatch();
   }
 
   private async checkEarlyEnd(reason: EndReason) {
@@ -532,7 +528,7 @@ export class Room implements DurableObject {
     const rows: ResultRow[] = runs
       .map((r) => ({
         key: r.key, name: r.name, kind: r.kind, placement: place.get(r.key)!, outcome: outcomeOf(r),
-        correct: r.correct, wrong: r.wrong, hearts: Math.max(0, STARTING_HEARTS - r.wrong),
+        correct: r.correct, wrong: r.wrong,
         eliminated: r.eliminatedAtMs !== null, eliminatedAtMs: r.eliminatedAtMs,
       }))
       .sort((a, b) => a.placement - b.placement);
@@ -540,7 +536,7 @@ export class Room implements DurableObject {
     const recorded: RecordedPlayer[] = runs.map((r) => ({
       key: r.key, uid: r.uid, kind: r.kind, name: r.name, placement: place.get(r.key)!, outcome: outcomeOf(r),
       correct: r.correct, wrong: r.wrong, questionsReached: r.kind === "bot" ? r.index : r.index + 1,
-      heartsLeft: Math.max(0, STARTING_HEARTS - r.wrong), eliminatedAtMs: r.eliminatedAtMs,
+      eliminatedAtMs: r.eliminatedAtMs,
       mistakes: r.mistakes, device: r.device,
     }));
 

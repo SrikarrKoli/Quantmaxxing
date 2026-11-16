@@ -1,4 +1,4 @@
-import { DEFAULT_RATING, type Device, type EndReason, type Mode, type PlayerKind, type ResultRow } from "@qm/shared";
+import { DEFAULT_RATING, type Device, type PracticeRunInput, type RunRecord, type EndReason, type Mode, type PlayerKind, type ResultRow } from "@qm/shared";
 import type { Env } from "./env";
 
 export interface RecordedPlayer {
@@ -11,7 +11,6 @@ export interface RecordedPlayer {
   correct: number;
   wrong: number;
   questionsReached: number;
-  heartsLeft: number;
   eliminatedAtMs: number | null;
   mistakes: number[];
   device: Device;
@@ -86,7 +85,7 @@ export async function recordMatch(env: Env, input: RecordInput) {
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).bind(
         input.id, p.key, cur ? p.uid! : null, p.kind, p.name, p.placement, p.outcome, p.correct, p.wrong,
-        p.questionsReached, p.heartsLeft, p.eliminatedAtMs !== null ? 1 : 0, p.eliminatedAtMs,
+        p.questionsReached, 0, p.eliminatedAtMs !== null ? 1 : 0, p.eliminatedAtMs,
         JSON.stringify(p.mistakes), p.device, after !== undefined ? cur!.rating : null, after ?? null,
       ),
     );
@@ -153,6 +152,33 @@ export async function upsertProfile(env: Env, uid: string, username: string, pro
 export async function deleteAccount(env: Env, uid: string) {
   await env.DB.batch([
     env.DB.prepare("UPDATE match_players SET uid = NULL, username = 'deleted' WHERE uid = ?").bind(uid),
+    env.DB.prepare("DELETE FROM practice_runs WHERE uid = ?").bind(uid),
     env.DB.prepare("DELETE FROM players WHERE uid = ?").bind(uid),
   ]);
+}
+
+export async function insertPracticeRuns(env: Env, uid: string, runs: PracticeRunInput[]) {
+  if (!runs.length) return;
+  await env.DB.batch(runs.map((r) =>
+    env.DB.prepare("INSERT INTO practice_runs (uid, duration_s, correct, wrong, created_at) VALUES (?, ?, ?, ?, ?)")
+      .bind(uid, r.duration, r.correct, r.wrong, r.at),
+  ));
+}
+
+/** Every match and solo run for one account, newest first. */
+export async function listRuns(env: Env, uid: string, limit = 500): Promise<RunRecord[]> {
+  const rows = await env.DB.prepare(
+    `SELECT * FROM (
+       SELECT 'm:' || m.id AS id, m.mode AS mode, m.duration_s AS duration, mp.correct AS correct, mp.wrong AS wrong,
+              m.ended_at AS at, mp.outcome AS outcome,
+              CASE WHEN m.player_count = 2 THEN (SELECT o.username FROM match_players o
+                WHERE o.match_id = mp.match_id AND o.player_key != mp.player_key LIMIT 1) END AS opponent
+       FROM match_players mp JOIN matches m ON m.id = mp.match_id WHERE mp.uid = ?
+       UNION ALL
+       SELECT 'p:' || id, 'practice', duration_s, correct, wrong, created_at, NULL, NULL FROM practice_runs WHERE uid = ?
+     ) ORDER BY at DESC LIMIT ?`,
+  )
+    .bind(uid, uid, limit)
+    .all<RunRecord & { outcome: RunRecord["outcome"] | null; opponent: string | null }>();
+  return rows.results.map(({ outcome, opponent, ...r }) => ({ ...r, ...(outcome ? { outcome } : {}), ...(opponent ? { opponent } : {}) }));
 }

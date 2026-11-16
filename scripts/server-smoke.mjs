@@ -38,7 +38,7 @@ function connect(url) {
 assert((await post("/api/guest", { username: "a b" })).status === 400, "invalid username rejected");
 assert((await post("/api/ticket", {})).status === 401, "ticket requires identity");
 
-// 1) Private room: same sequence, hearts, no advance on wrong, elimination ends match.
+// 1) Private room: same sequence, no advance on wrong, wrong answers never knock anyone out.
 const A = await guest("AliceTest"); const B = await guest("BobTest");
 const ev = await post("/api/event", { name: "share", src: "smoke" });
 assert(ev.status === 204, "anonymous share event is counted");
@@ -55,7 +55,7 @@ ca.send({ t: "start" });
 const ma = await ca.wait((m) => m.t === "match");
 const mb = await cb.wait((m) => m.t === "match");
 assert(JSON.stringify(ma.questions) === JSON.stringify(mb.questions), "both players get identical questions");
-assert(ma.self.hearts === 3, "players start with three hearts");
+assert(!("hearts" in ma.self), "no hearts in player state");
 await sleep(ma.startAt - ma.serverNow + 50);
 // A answers 3 correctly
 let qa = [...ma.questions];
@@ -68,25 +68,27 @@ for (let i = 0; i < 3; i++) {
 // B: wrong answer keeps the same question
 cb.send({ t: "ans", i: 0, v: -1 });
 let ack = await cb.wait((m) => m.t === "ack");
-assert(!ack.ok && ack.self.hearts === 2 && ack.self.index === 0, "wrong answer removes a heart and keeps the question");
+assert(!ack.ok && ack.self.wrong === 1 && ack.self.index === 0, "wrong answer counts and keeps the question");
 cb.send({ t: "ans", i: 0, v: -1 });
 ack = await cb.wait((m) => m.t === "ack");
-assert(ack.self.hearts === 2, "burst wrong answer inside cooldown is ignored");
+assert(ack.self.wrong === 1, "burst wrong answer inside cooldown is ignored");
 await sleep(400);
 cb.send({ t: "ans", i: 0, v: solve(mb.questions[0]) });
 ack = await cb.wait((m) => m.t === "ack" && m.ok);
 assert(ack.self.index === 1, "correct answer after mistake advances");
 cb.send({ t: "ans", i: 0, v: solve(mb.questions[0]) });
 ack = await cb.wait((m) => m.t === "ack");
-assert(!ack.ok && ack.self.correct === 1 && ack.self.hearts === 2, "duplicate stale submission costs nothing");
-await sleep(400); cb.send({ t: "ans", i: 1, v: -1 });
-await cb.wait((m) => m.t === "ack");
-await sleep(400); cb.send({ t: "ans", i: 1, v: -1 });
-ack = await cb.wait((m) => m.t === "ack");
-assert(ack.self.hearts === 0 && ack.self.eliminated, "third wrong answer eliminates");
+assert(!ack.ok && ack.self.correct === 1 && ack.self.wrong === 1, "duplicate stale submission costs nothing");
+for (let k = 0; k < 4; k++) {
+  await sleep(400); cb.send({ t: "ans", i: 1, v: -1 });
+  ack = await cb.wait((m) => m.t === "ack");
+}
+assert(ack.self.wrong === 5 && !ack.self.eliminated && ack.self.index === 1, "five wrong answers don't knock a player out");
+assert(!(await ca.wait((m) => m.t === "results", 600).catch(() => null)), "match keeps running after many wrong answers");
+cb.send({ t: "resign" });
 const res = await ca.wait((m) => m.t === "results");
-assert(res.results.endReason === "hearts", "match ends immediately on elimination");
-assert(res.results.rows[0].key === A.key && res.results.rows[0].outcome === "win", "surviving player wins");
+assert(res.results.endReason === "resign" && !res.results.rows.some((r) => "hearts" in r), "match ends on resign, results have no hearts");
+assert(res.results.rows[0].key === A.key && res.results.rows[0].outcome === "win", "remaining player wins");
 assert(res.results.rated === false, "private rooms are unrated");
 // rematch in the same room without a new code
 ca.send({ t: "start" });
@@ -183,8 +185,25 @@ assert(rrres.results.rated === false, "ranked bot match is unrated");
 await sleep(500);
 const me1b = await (await fetch(`${BASE}/api/me`, { headers: U1.auth })).json();
 assert(me1b.profile.rating === 1220, `ranked bot match leaves rating alone (${me1b.profile.rating})`);
-const hs = await fetch(`${BASE}/api/stats/hearts`);
-assert(hs.status === 200, "heart telemetry endpoint responds");
+// Run history: signed-in solo runs and matches are saved; guests' matches can be claimed at sign-in.
+assert((await fetch(`${BASE}/api/me/runs`)).status === 401, "run history needs sign-in");
+assert((await post("/api/runs", { duration: 60, correct: 20, wrong: 1 })).status === 401, "saving a run needs sign-in");
+assert((await post("/api/runs", { duration: 45, correct: 20, wrong: 1 }, U1.auth)).status === 400, "bad run length rejected");
+assert((await post("/api/runs", { duration: 60, correct: 9999, wrong: 0 }, U1.auth)).status === 400, "impossible score rejected");
+assert((await post("/api/runs", { duration: 60, correct: 21, wrong: 2 }, U1.auth)).status === 204, "solo run saved");
+const runs1 = (await (await fetch(`${BASE}/api/me/runs`, { headers: U1.auth })).json()).runs;
+assert(runs1.some((r) => r.mode === "practice" && r.correct === 21) && runs1.some((r) => r.mode === "ranked" && r.outcome === "win"), "history lists solo runs and matches");
+const runs2 = (await (await fetch(`${BASE}/api/me/runs`, { headers: U2.auth })).json()).runs;
+assert(!runs2.some((r) => r.mode === "practice"), "another player's runs stay private");
+const U4 = await user(`u4${suffix}`, `rk4${suffix}`);
+const claim = await post("/api/me/claim", { practice: [{ duration: 30, correct: 11, wrong: 0, at: Date.now() - 60_000 }, { duration: 7, correct: 1, wrong: 0 }] }, { ...U4.auth, "X-Guest-Token": lone.token });
+assert(claim.status === 200 && claim.body.practice === 1 && claim.body.matches >= 1, `guest runs claimed at sign-in (${JSON.stringify(claim.body)})`);
+const again = await post("/api/me/claim", { practice: [] }, { ...U1.auth, "X-Guest-Token": lone.token });
+assert(again.body.matches === 0, "guest matches can only be claimed once");
+const runs4 = (await (await fetch(`${BASE}/api/me/runs`, { headers: U4.auth })).json()).runs;
+assert(runs4.some((r) => r.mode === "casual" && r.opponent) && runs4.some((r) => r.mode === "practice" && r.correct === 11), "claimed runs appear in history");
+const hs = await fetch(`${BASE}/api/stats/mistakes`);
+assert(hs.status === 200, "mistake telemetry endpoint responds");
 console.log(JSON.stringify(await hs.json()).slice(0, 300));
 console.log("\nALL SMOKE CHECKS PASSED");
 process.exit(0);

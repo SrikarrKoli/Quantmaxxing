@@ -1,6 +1,6 @@
-import { BOT_LEVELS, cleanSource, isBotLevel, isEventName, isDuration, suggestUsername, validateUsername, levelFor, type DurationSec } from "@qm/shared";
+import { BOT_LEVELS, cleanPracticeRun, cleanSource, isBotLevel, isEventName, isDuration, suggestUsername, validateUsername, levelFor, type DurationSec } from "@qm/shared";
 import { randomId, sign, verify, verifyFirebaseToken, type FirebaseIdentity, type GuestToken, type Ticket } from "./auth";
-import { deleteAccount, getProfile, upsertProfile } from "./db";
+import { deleteAccount, getProfile, insertPracticeRuns, listRuns, upsertProfile } from "./db";
 import type { Env } from "./env";
 import type { RoomInit } from "./room";
 
@@ -231,12 +231,52 @@ async function route(req: Request, env: Env): Promise<Response> {
     return json({ profile: { ...pub, level: levelFor(profile.total_correct) }, history: history.results });
   }
 
-  if (path === "/api/stats/hearts" && req.method === "GET") {
+  if (path === "/api/runs" && req.method === "POST") {
+    const identity = await firebaseFrom(req, env);
+    if (!identity) return err(401, "unauthenticated", "Sign in to save runs.");
+    if (limited(`runs:${identity.uid}`, 120, 60 * 60 * 1000)) return err(429, "rate_limited", "Too many runs saved. Try again later.");
+    if (!(await getProfile(env, identity.uid))) return err(409, "profile_required", "Choose a username first.");
+    const run = cleanPracticeRun(await readJson(req), Date.now());
+    if (!run) return err(400, "bad_run", "That run doesn't look right.");
+    await insertPracticeRuns(env, identity.uid, [run]);
+    return new Response(null, { status: 204 });
+  }
+
+  if (path === "/api/me/claim" && req.method === "POST") {
+    const identity = await firebaseFrom(req, env);
+    if (!identity) return err(401, "unauthenticated", "Sign in first.");
+    if (limited(`claim:${identity.uid}`, 30, 60 * 60 * 1000)) return err(429, "rate_limited", "Try again later.");
+    const profile = await getProfile(env, identity.uid);
+    if (!profile) return err(409, "profile_required", "Choose a username first.");
+    const body = await readJson<{ practice: unknown[] }>(req);
+    const now = Date.now();
+    const practice = (Array.isArray(body.practice) ? body.practice.slice(0, 50) : [])
+      .map((r) => cleanPracticeRun(r, now))
+      .filter((r): r is NonNullable<typeof r> => !!r);
+    await insertPracticeRuns(env, identity.uid, practice);
+    // A valid guest token proves these guest matches were played in this browser.
+    const guest = await verify<GuestToken>(req.headers.get("X-Guest-Token"), env.TOKEN_SECRET);
+    let matches = 0;
+    if (guest?.typ === "guest") {
+      const r = await env.DB.prepare("UPDATE match_players SET uid = ? WHERE player_key = ? AND uid IS NULL")
+        .bind(identity.uid, `g:${guest.gid}`)
+        .run();
+      matches = r.meta.changes ?? 0;
+    }
+    return json({ practice: practice.length, matches });
+  }
+
+  if (path === "/api/me/runs" && req.method === "GET") {
+    const identity = await firebaseFrom(req, env);
+    if (!identity) return err(401, "unauthenticated", "Sign in to see every run.");
+    return json({ runs: await listRuns(env, identity.uid) });
+  }
+
+  if (path === "/api/stats/mistakes" && req.method === "GET") {
     const days = Math.min(90, Math.max(1, Number(url.searchParams.get("days")) || 30));
     const since = Date.now() - days * 24 * 60 * 60 * 1000;
     const rows = await env.DB.prepare(
       `SELECT m.duration_s AS duration, m.mode AS mode, mp.wrong AS wrong, COUNT(*) AS players,
-              SUM(CASE WHEN mp.eliminated = 1 AND m.end_reason = 'hearts' THEN 1 ELSE 0 END) AS eliminated,
               AVG(mp.correct) AS avg_correct
        FROM match_players mp JOIN matches m ON m.id = mp.match_id
        WHERE mp.kind != 'bot' AND m.ended_at >= ?

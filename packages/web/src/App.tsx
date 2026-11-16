@@ -7,6 +7,7 @@ import { SignIn, SignUp, ResetPassword, ChooseUsername } from "./screens/Auth";
 import { Leaderboard, PlayerPage } from "./screens/Leaderboard";
 import { Account } from "./screens/Account";
 import { Practice } from "./screens/Practice";
+import { Runs } from "./screens/Runs";
 
 function Screen({ path }: { path: string }) {
   const s = useSession();
@@ -23,6 +24,7 @@ function Screen({ path }: { path: string }) {
   if (path === "/account/username") return <ChooseUsername />;
   if (path === "/account") return <Account />;
   if (path === "/leaderboard") return <Leaderboard />;
+  if (path === "/runs") return <Runs />;
   if ((m = path.match(/^\/u\/([A-Za-z0-9_-]{3,20})$/))) return <PlayerPage username={m[1]!} />;
   return (
     <main className="page narrow">
@@ -42,6 +44,7 @@ export function App() {
       <header className={`bar${inMatch ? " slim" : ""}`}>
         <Link to="/" className="logo" aria-label="Quantmaxxing home"><span aria-hidden="true">Quantma<i>××</i>ing</span></Link>
         <nav aria-label="Main">
+          <Link to="/runs">Runs</Link>
           <Link to="/leaderboard">Leaderboard</Link>
         </nav>
         <div className="who">
