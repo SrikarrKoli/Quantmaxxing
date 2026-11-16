@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { summarizeRuns, withChanges, type RunMode, type RunRecord } from "@qm/shared";
+import { summarizeRuns, withChanges, type LengthSummary, type RunMode, type RunRecord } from "@qm/shared";
 import { api } from "../api";
 import { Link } from "../router";
 import { useSessionRuns } from "../runs";
@@ -57,6 +57,7 @@ export function Runs() {
   const signedIn = !!(s.user && s.profile);
   const [tab, setTab] = useState<"all" | "session">(signedIn ? "all" : "session");
   const [all, setAll] = useState<RunRecord[] | null>(null);
+  const [allSummary, setAllSummary] = useState<LengthSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => { setTab(signedIn ? "all" : "session"); }, [signedIn]);
@@ -66,15 +67,15 @@ export function Runs() {
     (async () => {
       try {
         const auth = await s.authHeaders();
-        const r = await api<{ runs: RunRecord[] }>("/api/me/runs", { auth: auth ?? {} });
-        if (live) setAll(r.runs);
+        const r = await api<{ runs: RunRecord[]; summary: LengthSummary[] }>("/api/me/runs", { auth: auth ?? {} });
+        if (live) { setAll(r.runs); setAllSummary(r.summary); }
       } catch (e) { if (live) setError(errorText(e)); }
     })();
     return () => { live = false; };
   }, [signedIn, tab, sessionRuns.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const shown = tab === "all" ? all : sessionRuns;
-  const summary = shown ? summarizeRuns(shown) : [];
+  const summary = tab === "all" ? (all ? allSummary : []) : summarizeRuns(sessionRuns);
   const rows = shown ? withChanges(shown).reverse() : [];
   const total = rows.length;
 

@@ -21,6 +21,8 @@ export interface PracticeRunInput {
   correct: number;
   wrong: number;
   at: number;
+  /** Browser-generated id; repeat uploads of the same id are ignored. */
+  id?: string;
 }
 
 const MAX_PER_SEC = 5;
@@ -36,7 +38,8 @@ export function cleanPracticeRun(raw: unknown, now: number): PracticeRunInput | 
   const int = (n: unknown, max: number): n is number => Number.isInteger(n) && (n as number) >= 0 && (n as number) <= max;
   if (!int(correct, duration * MAX_PER_SEC) || !int(wrong, duration * MAX_PER_SEC)) return null;
   if (typeof at !== "number" || !Number.isFinite(at) || at > now + 60_000 || at < now - MAX_AGE_MS) return null;
-  return { duration, correct, wrong, at: Math.round(at) };
+  const id = typeof o.id === "string" && /^[\w:-]{1,64}$/.test(o.id) ? o.id : undefined;
+  return { duration, correct, wrong, at: Math.round(at), ...(id ? { id } : {}) };
 }
 
 export interface RunWithChange extends RunRecord {
@@ -69,8 +72,8 @@ export interface LengthSummary {
 }
 
 /** Per match length: how many runs, first vs latest score, best and average. Most-played length first. */
-export function summarizeRuns(runs: RunRecord[]): LengthSummary[] {
-  const by = new Map<number, RunRecord[]>();
+export function summarizeRuns(runs: Pick<RunRecord, "duration" | "correct" | "at">[]): LengthSummary[] {
+  const by = new Map<number, Pick<RunRecord, "duration" | "correct" | "at">[]>();
   for (const r of [...runs].sort((a, b) => a.at - b.at)) by.set(r.duration, [...(by.get(r.duration) ?? []), r]);
   return [...by.entries()]
     .map(([duration, rs]) => ({

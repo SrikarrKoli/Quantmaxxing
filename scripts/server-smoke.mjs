@@ -191,9 +191,14 @@ assert((await post("/api/runs", { duration: 60, correct: 20, wrong: 1 })).status
 assert((await post("/api/runs", { duration: 45, correct: 20, wrong: 1 }, U1.auth)).status === 400, "bad run length rejected");
 assert((await post("/api/runs", { duration: 60, correct: 9999, wrong: 0 }, U1.auth)).status === 400, "impossible score rejected");
 assert((await post("/api/runs", { duration: 60, correct: 21, wrong: 2 }, U1.auth)).status === 204, "solo run saved");
+const retry = { id: `p:retry${suffix}`, duration: 120, correct: 33, wrong: 0, at: Date.now() };
+assert((await post("/api/runs", retry, U1.auth)).status === 204 && (await post("/api/runs", retry, U1.auth)).status === 204, "retried solo run accepted");
 const runs1 = (await (await fetch(`${BASE}/api/me/runs`, { headers: U1.auth })).json()).runs;
 assert(runs1.some((r) => r.mode === "practice" && r.correct === 21) && runs1.some((r) => r.mode === "ranked" && r.outcome === "win"), "history lists solo runs and matches");
 const runs2 = (await (await fetch(`${BASE}/api/me/runs`, { headers: U2.auth })).json()).runs;
+const hist1 = await (await fetch(`${BASE}/api/me/runs`, { headers: U1.auth })).json();
+assert(hist1.runs.filter((r) => r.duration === 120 && r.correct === 33).length === 1, "a retried upload saves the run once");
+assert(hist1.summary.find((x) => x.duration === 120)?.runs === 1, "history includes an all-time summary");
 assert(!runs2.some((r) => r.mode === "practice"), "another player's runs stay private");
 const U4 = await user(`u4${suffix}`, `rk4${suffix}`);
 const claim = await post("/api/me/claim", { practice: [{ duration: 30, correct: 11, wrong: 0, at: Date.now() - 60_000 }, { duration: 7, correct: 1, wrong: 0 }] }, { ...U4.auth, "X-Guest-Token": lone.token });

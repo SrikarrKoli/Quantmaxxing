@@ -30,3 +30,11 @@ describe("run history", () => {
     expect(cleanPracticeRun("nope", now)).toBeNull();
   });
 });
+
+describe("cleanPracticeRun ids", () => {
+  it("keeps a well-formed browser id and drops a malformed one", () => {
+    const now = Date.now();
+    expect(cleanPracticeRun({ id: "p:abc-123", duration: 60, correct: 5, wrong: 0, at: now }, now)?.id).toBe("p:abc-123");
+    expect(cleanPracticeRun({ id: "x'; DROP", duration: 60, correct: 5, wrong: 0, at: now }, now)?.id).toBeUndefined();
+  });
+});

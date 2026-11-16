@@ -1,6 +1,6 @@
 import { BOT_LEVELS, cleanPracticeRun, cleanSource, isBotLevel, isEventName, isDuration, suggestUsername, validateUsername, levelFor, type DurationSec } from "@qm/shared";
 import { randomId, sign, verify, verifyFirebaseToken, type FirebaseIdentity, type GuestToken, type Ticket } from "./auth";
-import { deleteAccount, getProfile, insertPracticeRuns, listRuns, upsertProfile } from "./db";
+import { deleteAccount, getProfile, insertPracticeRuns, listRuns, summarizeAllRuns, upsertProfile } from "./db";
 import type { Env } from "./env";
 import type { RoomInit } from "./room";
 
@@ -269,7 +269,8 @@ async function route(req: Request, env: Env): Promise<Response> {
   if (path === "/api/me/runs" && req.method === "GET") {
     const identity = await firebaseFrom(req, env);
     if (!identity) return err(401, "unauthenticated", "Sign in to see every run.");
-    return json({ runs: await listRuns(env, identity.uid) });
+    const [runs, summary] = await Promise.all([listRuns(env, identity.uid), summarizeAllRuns(env, identity.uid)]);
+    return json({ runs, summary });
   }
 
   if (path === "/api/stats/mistakes" && req.method === "GET") {

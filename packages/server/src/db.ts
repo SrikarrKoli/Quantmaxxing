@@ -1,4 +1,4 @@
-import { DEFAULT_RATING, type Device, type PracticeRunInput, type RunRecord, type EndReason, type Mode, type PlayerKind, type ResultRow } from "@qm/shared";
+import { DEFAULT_RATING, summarizeRuns, type Device, type LengthSummary, type PracticeRunInput, type RunRecord, type EndReason, type Mode, type PlayerKind, type ResultRow } from "@qm/shared";
 import type { Env } from "./env";
 
 export interface RecordedPlayer {
@@ -160,12 +160,25 @@ export async function deleteAccount(env: Env, uid: string) {
 export async function insertPracticeRuns(env: Env, uid: string, runs: PracticeRunInput[]) {
   if (!runs.length) return;
   await env.DB.batch(runs.map((r) =>
-    env.DB.prepare("INSERT INTO practice_runs (uid, duration_s, correct, wrong, created_at) VALUES (?, ?, ?, ?, ?)")
-      .bind(uid, r.duration, r.correct, r.wrong, r.at),
+    env.DB.prepare("INSERT OR IGNORE INTO practice_runs (uid, duration_s, correct, wrong, created_at, client_id) VALUES (?, ?, ?, ?, ?, ?)")
+      .bind(uid, r.duration, r.correct, r.wrong, r.at, r.id ?? null),
   ));
 }
 
-/** Every match and solo run for one account, newest first. */
+/** Per-length summary over every run on the account, not just the ones listRuns returns. */
+export async function summarizeAllRuns(env: Env, uid: string): Promise<LengthSummary[]> {
+  const rows = await env.DB.prepare(
+    `SELECT m.duration_s AS duration, mp.correct AS correct, m.ended_at AS at
+     FROM match_players mp JOIN matches m ON m.id = mp.match_id WHERE mp.uid = ?
+     UNION ALL
+     SELECT duration_s, correct, created_at FROM practice_runs WHERE uid = ?`,
+  )
+    .bind(uid, uid)
+    .all<{ duration: number; correct: number; at: number }>();
+  return summarizeRuns(rows.results);
+}
+
+/** The latest matches and solo runs for one account, newest first. */
 export async function listRuns(env: Env, uid: string, limit = 500): Promise<RunRecord[]> {
   const rows = await env.DB.prepare(
     `SELECT * FROM (

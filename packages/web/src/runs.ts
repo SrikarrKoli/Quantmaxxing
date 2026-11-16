@@ -44,11 +44,15 @@ export function addSessionRun(run: RunRecord, auth?: AuthHeaders | null) {
   const stored: Stored = { ...run, synced: run.mode !== "practice" };
   write([...runs, stored]);
   if (run.mode === "practice" && auth?.Authorization) {
-    api("/api/runs", { method: "POST", body: { duration: run.duration, correct: run.correct, wrong: run.wrong, at: run.at }, auth })
+    api("/api/runs", { method: "POST", body: upload(run), auth })
       .then(() => markSynced([run.id]))
       .catch(() => { /* kept locally; uploaded with the next sign-in */ });
   }
 }
+
+const upload = (r: RunRecord) => ({ id: r.id, duration: r.duration, correct: r.correct, wrong: r.wrong, at: r.at });
+/** Keeps each claim request well under the server's request size and per-request run limit. */
+const CLAIM_BATCH = 20;
 
 function markSynced(ids: string[]) {
   write(read().map((r) => (ids.includes(r.id) ? { ...r, synced: true } : r)));
@@ -58,10 +62,15 @@ function markSynced(ids: string[]) {
 export async function claimGuestRuns(auth: AuthHeaders, guestToken: string | undefined) {
   const pending = read().filter((r) => r.mode === "practice" && !r.synced);
   if (!pending.length && !guestToken) return;
-  await api("/api/me/claim", {
-    method: "POST",
-    body: { practice: pending.map((r) => ({ duration: r.duration, correct: r.correct, wrong: r.wrong, at: r.at })) },
-    auth: { ...auth, ...(guestToken ? { "X-Guest-Token": guestToken } : {}) },
-  });
-  markSynced(pending.map((r) => r.id));
+  let i = 0;
+  do {
+    const batch = pending.slice(i, i + CLAIM_BATCH);
+    await api("/api/me/claim", {
+      method: "POST",
+      body: { practice: batch.map(upload) },
+      auth: { ...auth, ...(guestToken && i === 0 ? { "X-Guest-Token": guestToken } : {}) },
+    });
+    markSynced(batch.map((r) => r.id));
+    i += CLAIM_BATCH;
+  } while (i < pending.length);
 }
